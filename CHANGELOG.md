@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.3
+- A click on a farming or gathering row opens the world map on its zone and pins the spot (WhatToDo notes where you loot; spots farmed before this version get a point after the next loot there).
+- Mob farming has a paw icon; the tab icons are smaller.
+
 ## 0.17.2
 - The "All" tab is one list, best first, instead of a section per activity; every row has its activity's icon (the same icons are on the tabs and in the tooltip).
 

@@ -296,6 +296,11 @@ local EN = {
 	["інше"] = "other",
 	["модель: навіть оптимістичний сценарій у мінусі (%s - %s/год, у плюс %d%%)"] = "model: even the optimistic case loses money (%s - %s/h, in profit %d%%)",
 	["Прибуток партії, якщо все продасться"] = "Batch profit if everything sells",
+	["Це підземелля - на мапі світу його не показати."] = "This is a dungeon - it can't be shown on the world map.",
+	["%s: позначено на мапі (%.0f, %.0f)."] = "%s: marked on the map (%.0f, %.0f).",
+	["%s: координати %.0f, %.0f."] = "%s: coordinates %.0f, %.0f.",
+	["%s: точку ще не знаю - вона з'явиться після першого лута там. Підзона: %s."] = "%s: no point known yet - it appears after your first loot there. Subzone: %s.",
+	["Клік - показати на мапі"] = "Click - show on the map",
 }
 
 function ns.Lang()

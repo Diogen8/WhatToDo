@@ -30,7 +30,7 @@ end
 local SECTION = {
 	craft = { icon = "Interface\\Icons\\Trade_BlackSmithing", title = "РЕКРАФТ (АФК)", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
 	learn = { icon = "Interface\\Icons\\INV_Misc_Book_09", title = "РЕКРАФТ: ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
-	farm = { icon = "Interface\\Icons\\INV_Sword_04", title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
+	farm = { icon = "Interface\\Icons\\Ability_Tracking", title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
 	mining = { icon = "Interface\\Icons\\Trade_Mining", title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
 	herbalism = { icon = "Interface\\Icons\\Trade_Herbalism", title = "ЗБІР ТРАВ", note = "трави, за годину на місці", color = { 0.45, 0.85, 0.45 }, hideEmpty = true },
 	skinning = { icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01", title = "СКІНІНГ", note = "шкури з мобів, за годину на місці", color = { 0.85, 0.7, 0.45 }, hideEmpty = true },
@@ -63,6 +63,9 @@ local function rowTooltip(row)
 	elseif a.kind ~= "learn" and a.confidence and a.confidence < 1 then
 		GameTooltip:AddLine(" ")
 		GameTooltip:AddLine(T("Мало даних - цифра може сильно гуляти."), 1, 0.5, 0.3, true)
+	end
+	if a.mapID and not a.product then
+		GameTooltip:AddLine(T("Клік - показати на мапі"), 0.4, 0.8, 1, true)
 	end
 	if a.product then
 		GameTooltip:AddLine(a.kind == "learn" and T("Клік - що потрібно для рецепта") or T("Клік - відкрити рецепт у професії"), 0.4, 0.8, 1, true)
@@ -117,7 +120,9 @@ local function makeRow(parent)
 	r.detail:SetTextColor(0.75, 0.75, 0.75)
 	r:SetScript("OnEnter", rowTooltip)
 	r:SetScript("OnClick", function(self)
-		if self.activity and self.activity.product then ns.OpenRecipe(self.activity) end
+		local a = self.activity
+		if not a then return end
+		if a.product then ns.OpenRecipe(a) elseif a.mapID then ns.ShowSpotOnMap(a) end
 	end)
 	r:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	return r
@@ -247,8 +252,8 @@ local function create()
 		b:SetHighlightFontObject("GameFontHighlightSmall")
 		b:SetText(label)
 		local icon = b:CreateTexture(nil, "OVERLAY")
-		icon:SetSize(16, 16)
-		icon:SetPoint("LEFT", 5, 0)
+		icon:SetSize(12, 12)
+		icon:SetPoint("LEFT", 6, 0)
 		icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 		icon:SetTexture(key == "all" and ALL_ICON or SECTION[key].icon)
 		local text = b:GetFontString()

@@ -104,6 +104,72 @@ levelWatch:SetScript("OnEvent", function(_, event, unit)
 	pcall(rememberLevel, event == "PLAYER_TARGET_CHANGED" and "target" or event == "UPDATE_MOUSEOVER_UNIT" and "mouseover" or unit)
 end)
 
+---------------------------------------------------------------------------
+-- Where on the map a spot is. Yield keeps only zone + subzone, so WhatToDo notes the player's position
+-- whenever loot opens (kills, nodes, herbs, skins, fish) and keeps a running centre per zone map + subzone:
+--   WhatToDoDB.spotPos[mapID][subzone] = { x, y, n }   (x, y in 0..1 on the zone map, the same map Yield keys by)
+---------------------------------------------------------------------------
+
+-- Yield's spot map: the zone above any cave or building micro map.
+local function zoneMap(mapID)
+	local micro = Enum and Enum.UIMapType and Enum.UIMapType.Micro
+	local info = mapID and C_Map.GetMapInfo(mapID)
+	while info and info.mapType == micro and info.parentMapID and info.parentMapID ~= 0 do
+		mapID = info.parentMapID
+		info = C_Map.GetMapInfo(mapID)
+	end
+	return mapID
+end
+
+local function rememberPosition()
+	if not WhatToDoDB or IsInInstance() or not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition) then return end
+	local mapID = zoneMap(C_Map.GetBestMapForUnit("player"))
+	local pos = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
+	if not pos then return end
+	local x, y = pos:GetXY()
+	if not x or (x == 0 and y == 0) then return end
+	local sub = GetSubZoneText() or ""
+	WhatToDoDB.spotPos = WhatToDoDB.spotPos or {}
+	local zone = WhatToDoDB.spotPos[mapID] or {}
+	WhatToDoDB.spotPos[mapID] = zone
+	local p = zone[sub]
+	if not p then zone[sub] = { x = x, y = y, n = 1 } return end
+	local n = math.min(p.n + 1, 100) -- a running mean that keeps following where the farming now happens
+	p.x, p.y, p.n = p.x + (x - p.x) / n, p.y + (y - p.y) / n, n
+end
+
+local posWatch = CreateFrame("Frame")
+pcall(posWatch.RegisterEvent, posWatch, "LOOT_OPENED")
+posWatch:SetScript("OnEvent", function() pcall(rememberPosition) end)
+
+-- Click on a farming or gathering row: open the world map on its zone and pin the spot's centre.
+function ns.ShowSpotOnMap(a)
+	local mapID, sub = a.mapID, a.subzone or ""
+	if not mapID or mapID < 0 then
+		ns.Out(T("Це підземелля - на мапі світу його не показати."))
+		return
+	end
+	local zone = WhatToDoDB and WhatToDoDB.spotPos and WhatToDoDB.spotPos[mapID]
+	local p = zone and zone[sub]
+	if OpenWorldMap then
+		OpenWorldMap(mapID)
+	elseif WorldMapFrame then
+		if not WorldMapFrame:IsShown() then ToggleWorldMap() end
+		WorldMapFrame:SetMapID(mapID)
+	end
+	if p and C_Map.SetUserWaypoint and UiMapPoint then
+		pcall(function()
+			C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, p.x, p.y))
+			if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+		end)
+		ns.Out(string.format(T("%s: позначено на мапі (%.0f, %.0f)."), a.title, p.x * 100, p.y * 100))
+	elseif p then
+		ns.Out(string.format(T("%s: координати %.0f, %.0f."), a.title, p.x * 100, p.y * 100))
+	else
+		ns.Out(string.format(T("%s: точку ще не знаю - вона з'явиться після першого лута там. Підзона: %s."), a.title, sub ~= "" and sub or "-"))
+	end
+end
+
 -- A spot's mob level: the kill-weighted median of its mobs' lowest levels, and the range of the mobs that make up
 -- at least a tenth of the kills. nil when no level is known.
 local function spotMobLevel(c)
@@ -412,6 +478,8 @@ function ns.FarmActivities()
 					out[#out + 1] = {
 						kind = cat,
 						title = title,
+						mapID = s.mapID,
+						subzone = s.subzone,
 						perHour = v.range and v.range.p50 or v.value * 3600 / s.seconds,
 						expectedPerHour = v.expected * 3600 / s.seconds,
 						corrected = not v.range and math.abs(v.value - v.expected) >= 1,
