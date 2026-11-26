@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.4
+- The Recraft tab has a gear icon; recraft rows show their profession's own icon.
+
 ## 0.17.3
 - A click on a farming or gathering row opens the world map on its zone and pins the spot (WhatToDo notes where you loot; spots farmed before this version get a point after the next loot there).
 - Mob farming has a paw icon; the tab icons are smaller.

@@ -169,6 +169,7 @@ local function evaluate(entry)
 		who = who,
 		need = need,
 		conversion = r.profession == "Essences",
+		profession = r.profession,
 	}
 end
 

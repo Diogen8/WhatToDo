@@ -28,7 +28,7 @@ end
 
 -- Each activity kind: its icon (rows and tabs), and its colour (header text, rule, a faint wash behind its rows).
 local SECTION = {
-	craft = { icon = "Interface\\Icons\\Trade_BlackSmithing", title = "РЕКРАФТ (АФК)", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
+	craft = { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "РЕКРАФТ (АФК)", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
 	learn = { icon = "Interface\\Icons\\INV_Misc_Book_09", title = "РЕКРАФТ: ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
 	farm = { icon = "Interface\\Icons\\Ability_Tracking", title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
 	mining = { icon = "Interface\\Icons\\Trade_Mining", title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
@@ -38,6 +38,17 @@ local SECTION = {
 }
 local SECTION_ORDER = { "craft", "learn", "farm", "mining", "herbalism", "skinning", "fishing" }
 local ALL_ICON = "Interface\\Icons\\INV_Misc_Coin_02"
+-- A recraft row shows its profession's own icon (the gear stays on the tab and for anything unknown).
+local PROFESSION_ICON = {
+	Blacksmithing = "Trade_BlackSmithing", Tailoring = "Trade_Tailoring", Leatherworking = "INV_Misc_ArmorKit_17",
+	Engineering = "Trade_Engineering", Mining = "Trade_Mining", Alchemy = "Trade_Alchemy", Enchanting = "Trade_Engraving",
+	Essences = "Trade_Engraving", Cooking = "INV_Misc_Food_15", ["First Aid"] = "Spell_Holy_SealOfSacrifice",
+	Jewelcrafting = "INV_Misc_Gem_01", Inscription = "INV_Inscription_Tradeskill01",
+}
+local function activityIcon(a)
+	local p = a.kind == "craft" and a.profession and PROFESSION_ICON[a.profession]
+	return p and ("Interface\\Icons\\" .. p) or SECTION[a.kind].icon
+end
 
 local function rowTooltip(row)
 	local a = row.activity
@@ -45,7 +56,7 @@ local function rowTooltip(row)
 	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
 	GameTooltip:AddLine(a.title, 1, 0.82, 0, true)
 	local sec = SECTION[a.kind]
-	if sec then GameTooltip:AddLine("|T" .. sec.icon .. ":14:14:0:0:64:64:5:59:5:59|t " .. T(sec.title), sec.color[1], sec.color[2], sec.color[3]) end
+	if sec then GameTooltip:AddLine("|T" .. activityIcon(a) .. ":14:14:0:0:64:64:5:59:5:59|t " .. T(sec.title), sec.color[1], sec.color[2], sec.color[3]) end
 	if a.range then
 		GameTooltip:AddDoubleLine(T("Золота за годину"), coinText(a.range[1]) .. " - " .. coinText(a.range[3]), 1, 1, 1, 1, 1, 1)
 	else
@@ -155,7 +166,7 @@ local function setActivity(r, a, rank)
 	r.rule:Hide()
 	r.header:Hide(); r.headerNote:Hide()
 	r.rank:SetText(rank .. ".")
-	r.icon:SetTexture(SECTION[a.kind].icon)
+	r.icon:SetTexture(activityIcon(a))
 	r.title:SetText(a.title)
 	local detail = a.detail or ""
 	if a.corrected and a.expectedPerHour and a.expectedPerHour > 0 then
