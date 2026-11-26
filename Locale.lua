@@ -247,6 +247,11 @@ local EN = {
 	["дані, якими з вами поділились:"] = "data shared with you:",
 	["/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd guide - інструкція, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"] = "/wtd - window, /wtd top [n] - top picks to chat, /wtd set - settings, /wtd check <item> - why (not) suggested, /wtd debug, /wtd version, /wtd lang en|uk - language, /wtd minimap - hide/show button, /wtd stats - actual sales, /wtd share - share with target, /wtd shared [clear [name]] - received data, /wtd guide - guide, /wtd reset, /wtd ledger reset, /wtd forget - forget character recipes",
 	["Інструкція"] = "Guide",
+	["Як ділитися даними"] = "How to share data",
+	["1. Друг у вашій групі, поруч, з тією самою версією WhatToDo."] = "1. Your friend is in your group, nearby, with the same WhatToDo version.",
+	["2. Візьміть його в таргет і натисніть \"Поділитися з ціллю\"."] = "2. Target them and click \"Share with target\".",
+	["3. Він підтверджує прийом у вікні, що з'явиться."] = "3. They accept in the window that pops up.",
+	["Клік - докладна інструкція"] = "Click - detailed guide",
 }
 
 function ns.Lang()

@@ -15,6 +15,45 @@ local GUIDE = {
 		close = "Зрозуміло",
 		open = "Відкрити WhatToDo",
 		switch = "English",
+		shareTitle = "WhatToDo - обмін даними",
+		share = H .. "ЯК ПОДІЛИТИСЯ" .. E .. [==[
+
+1. Будьте з другом в одній групі або рейді.
+2. Підійдіть ближче, до 28 ярдів.
+3. Візьміть його в таргет і натисніть "Поділитися з ціллю".
+4. У друга з'явиться вікно: він має натиснути "Прийняти" протягом хвилини.
+5. Перебіг передачі видно в рядку внизу вікна WhatToDo. Наприкінці обом прийде повідомлення в чат.
+
+]==] .. H .. "УМОВИ" .. E .. [==[
+
+- У обох однакова версія WhatToDo.
+- Не в бою.
+- Той самий сервер.
+
+]==] .. H .. "ЩО ПЕРЕДАЄТЬСЯ" .. E .. [==[
+
+Лише ваші власні дані, не те, що передали вам інші:
+- продажі, повернення та купівлі з аукціону, фактичний час на крафт;
+- ціни, які ви сканували за останню добу, тільки для предметів з порад;
+- ваші місця фарму та збору з Yield.
+
+]==] .. H .. "ЩО З ЦИМ РОБИТЬ ДРУГ" .. E .. [==[
+
+- Зберігає окремо: його власні дані не змінюються.
+- Ваші продажі важать для нього вдвічі менше за його власні.
+- Ваша ціна використовується, лише якщо вона свіжіша за його.
+- Ваші місця фарму додаються до його і позначаються зірочкою.
+- Нова передача від вас замінює попередню.
+
+]==] .. H .. "БЕЗПЕКА" .. E .. [==[
+
+Отримане перевіряється поле за полем і ніколи не виконується як код. Неправильні дані, дані з іншого сервера і завеликий обсяг відхиляються.
+
+]==] .. H .. "КОМАНДИ" .. E .. [==[
+
+/wtd share - поділитися з ціллю
+/wtd shared - що вам передали
+/wtd shared clear [нік] - забути дані від гравця (без ніка - від усіх)]==],
 		body = H .. "ЩО ЦЕ" .. E .. [==[
 
 WhatToDo підказує, чим зараз найвигідніше зайнятися, і сортує варіанти за золотом за годину:
@@ -85,6 +124,45 @@ WhatToDo підказує, чим зараз найвигідніше зайня
 		close = "Got it",
 		open = "Open WhatToDo",
 		switch = "Українська",
+		shareTitle = "WhatToDo - sharing data",
+		share = H .. "HOW TO SHARE" .. E .. [==[
+
+1. Be in the same party or raid as your friend.
+2. Get close, within 28 yards.
+3. Target them and click "Share with target".
+4. A window pops up for your friend: they have a minute to click "Accept".
+5. The progress shows in the line at the bottom of the WhatToDo window. Both of you get a chat message at the end.
+
+]==] .. H .. "REQUIREMENTS" .. E .. [==[
+
+- Both have the same WhatToDo version.
+- Not in combat.
+- The same realm.
+
+]==] .. H .. "WHAT IS SENT" .. E .. [==[
+
+Only your own data, never what others shared with you:
+- auction sales, returns and purchases, actual time per craft;
+- prices you scanned in the last 24 hours, only for items the suggestions use;
+- your farming and gathering spots from Yield.
+
+]==] .. H .. "WHAT YOUR FRIEND DOES WITH IT" .. E .. [==[
+
+- Keeps it separately: their own data does not change.
+- Your sales weigh half as much as their own.
+- Your price is used only when it is fresher than theirs.
+- Your farm spots are added to theirs, marked with an asterisk.
+- A new share from you replaces the previous one.
+
+]==] .. H .. "SAFETY" .. E .. [==[
+
+Received data is checked field by field and never run as code. Invalid data, data from another realm and oversized transfers are rejected.
+
+]==] .. H .. "COMMANDS" .. E .. [==[
+
+/wtd share - share with your target
+/wtd shared - what was shared with you
+/wtd shared clear [name] - forget a player's data (no name: everyone's)]==],
 		body = H .. "WHAT IT IS" .. E .. [==[
 
 WhatToDo suggests what is most profitable to do right now and ranks the options by gold per hour:
@@ -151,6 +229,7 @@ If someone in your guild, group or friends list has a newer WhatToDo, the addon 
 }
 
 local frame
+local topic -- nil: the full guide; "share": the sharing page
 
 local function texts()
 	return GUIDE[ns.Lang()] or GUIDE.uk
@@ -163,8 +242,8 @@ end
 local function fill()
 	if not frame then return end
 	local t = texts()
-	frame.titleText:SetText(t.title)
-	local body = t.body
+	frame.titleText:SetText(topic == "share" and t.shareTitle or t.title)
+	local body = (topic == "share" and t.share or t.body)
 		:gsub("{AUCTIONATOR}", status(ns.HasAuctionator(), t))
 		:gsub("{YIELD}", status(ns.HasYield(), t))
 	frame.text:SetText(body)
@@ -234,10 +313,13 @@ local function create()
 	frame = f
 end
 
-function ns.ShowGuide()
+-- topic: nil for the full guide, "share" for just the sharing page.
+function ns.ShowGuide(which)
 	if not frame then create() end
+	topic = which
 	frame:Show()
 	fill()
+	if WhatToDoGuideScroll and WhatToDoGuideScroll.SetVerticalScroll then WhatToDoGuideScroll:SetVerticalScroll(0) end
 end
 
 -- First login with the addon: show the guide once, a moment after the UI settles.

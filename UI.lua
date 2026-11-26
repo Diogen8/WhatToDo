@@ -266,7 +266,7 @@ local function create()
 
 	f.status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	f.status:SetPoint("BOTTOMLEFT", 14, 10)
-	f.status:SetPoint("RIGHT", f, "RIGHT", -190, 0)
+	f.status:SetPoint("RIGHT", f, "RIGHT", -214, 0)
 	f.status:SetJustifyH("LEFT")
 	f.status:SetWordWrap(false)
 
@@ -282,6 +282,23 @@ local function create()
 	end)
 	share:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	f.shareButton = share
+
+	-- "?" next to it: how sharing works
+	local shareHelp = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	shareHelp:SetSize(20, 20)
+	shareHelp:SetPoint("RIGHT", share, "LEFT", -3, 0)
+	shareHelp:SetText("?")
+	shareHelp:SetScript("OnClick", function() ns.ShowGuide("share") end)
+	shareHelp:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:AddLine(T("Як ділитися даними"))
+		GameTooltip:AddLine(T("1. Друг у вашій групі, поруч, з тією самою версією WhatToDo."), 0.8, 0.8, 0.8, true)
+		GameTooltip:AddLine(T("2. Візьміть його в таргет і натисніть \"Поділитися з ціллю\"."), 0.8, 0.8, 0.8, true)
+		GameTooltip:AddLine(T("3. Він підтверджує прийом у вікні, що з'явиться."), 0.8, 0.8, 0.8, true)
+		GameTooltip:AddLine(T("Клік - докладна інструкція"), 0.4, 0.8, 1, true)
+		GameTooltip:Show()
+	end)
+	shareHelp:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 	f:SetScript("OnShow", ns.Refresh)
 	frame = f
