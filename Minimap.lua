@@ -46,7 +46,7 @@ local function showTooltip(self)
 	local income = ns.Income and ns.Income(7) or 0
 	if income > 0 then GameTooltip:AddDoubleLine("Виручка з аукціону, 7 дн.", ns.Coin(income), 0.7, 0.7, 0.7, 1, 1, 1) end
 	GameTooltip:AddLine(" ")
-	GameTooltip:AddLine("Лівий клік — вікно · правий — топ у чат · тягнути — перемістити", 0.6, 0.6, 0.6, true)
+	GameTooltip:AddLine("Лівий клік - вікно, правий - топ у чат, тягнути - перемістити", 0.6, 0.6, 0.6, true)
 	GameTooltip:Show()
 end
 

@@ -15,7 +15,7 @@ local function statusText(count)
 	parts[#parts + 1] = ns.HasAuctionator() and "Auctionator: є" or "|cffff6666Auctionator: немає|r"
 	parts[#parts + 1] = ns.HasYield() and "Yield: є" or "|cffff6666Yield: немає|r"
 	local recipes, chars = ns.RecipeCount()
-	parts[#parts + 1] = string.format("рецептів: %d · персонажів: %d", recipes, chars)
+	parts[#parts + 1] = string.format("рецептів: %d, персонажів: %d", recipes, chars)
 	parts[#parts + 1] = string.format("варіантів: %d", count)
 	parts[#parts + 1] = "виручка 7 дн.: " .. ns.Coin(ns.Income(7))
 	return table.concat(parts, "   ")
@@ -32,10 +32,10 @@ local function rowTooltip(row)
 	end
 	if a.kind == "craft" then
 		GameTooltip:AddLine(" ")
-		GameTooltip:AddLine("Час на продаж не враховано. Ціни — мінімальні зі сканування.", 0.6, 0.6, 0.6, true)
+		GameTooltip:AddLine("Час на продаж не враховано. Ціни - мінімальні зі сканування.", 0.6, 0.6, 0.6, true)
 	elseif a.confidence and a.confidence < 1 then
 		GameTooltip:AddLine(" ")
-		GameTooltip:AddLine("Мало даних — цифра може сильно гуляти.", 1, 0.5, 0.3, true)
+		GameTooltip:AddLine("Мало даних - цифра може сильно гуляти.", 1, 0.5, 0.3, true)
 	end
 	GameTooltip:Show()
 end
@@ -43,8 +43,8 @@ end
 local HEADER_HEIGHT = 26
 -- Each section's colour: the header text, its rule and a faint wash behind its rows.
 local SECTION = {
-	craft = { title = "РЕКРАФТ · АФК", note = "купити матеріали → скрафтити → продати", color = { 0.4, 0.67, 1 } },
-	learn = { title = "РЕКРАФТ · ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
+	craft = { title = "РЕКРАФТ, АФК", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
+	learn = { title = "РЕКРАФТ, ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
 	farm = { title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
 	mining = { title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
 	herbalism = { title = "ЗБІР ТРАВ", note = "трави, за годину на місці", color = { 0.45, 0.85, 0.45 }, hideEmpty = true },
@@ -106,7 +106,7 @@ local function setHeader(r, kind, count)
 	r.rule:Show()
 	r.header:SetText(s.title)
 	r.header:SetTextColor(c[1], c[2], c[3])
-	r.headerNote:SetText(count > 0 and s.note or "нічого вигідного (/wtd — підказки)")
+	r.headerNote:SetText(count > 0 and s.note or "нічого вигідного (/wtd - підказки)")
 	r.header:Show(); r.headerNote:Show()
 	r.rank:Hide(); r.value:Hide(); r.title:Hide(); r.detail:Hide()
 end
@@ -124,7 +124,7 @@ local function setActivity(r, a, rank)
 	r.title:SetText(a.title)
 	local detail = a.detail or ""
 	if a.corrected and a.expectedPerHour and a.expectedPerHour > 0 then
-		detail = string.format("|cffffcc66факт %.0f%% від прогнозу|r · ", a.perHour / a.expectedPerHour * 100) .. detail
+		detail = string.format("|cffffcc66факт %.0f%% від прогнозу|r, ", a.perHour / a.expectedPerHour * 100) .. detail
 	end
 	r.detail:SetText(detail)
 	r.value:SetText(coinText(a.perHour) .. "/год")
@@ -171,7 +171,7 @@ end
 local EMPTY_TEXT = "Поки нічого порадити.\n\n" ..
 	"Збір (майнінг, трави, скінінг, риболовля) береться з тих самих сесій Yield.\n" ..
 	"Рекрафт: проскануйте аукціон в Auctionator і зайдіть кожним персонажем хоч раз,\n" ..
-	"щоб WhatToDo запам'ятав їхні професії (вікна професій — для точних рецептів).\n" ..
+	"щоб WhatToDo запам'ятав їхні професії (вікна професій - для точних рецептів).\n" ..
 	"Фарм: увімкніть Yield і пофарміть хоча б 10 хв на одному місці."
 
 local function create()
@@ -189,7 +189,7 @@ local function create()
 
 	local title = f.TitleText or f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	if not f.TitleText then title:SetPoint("TOP", 0, -5) end
-	title:SetText("WhatToDo — найвигідніше за годину")
+	title:SetText("WhatToDo - найвигідніше за годину")
 
 	f.tabs = {}
 	local function tab(key, label, x)
@@ -265,8 +265,8 @@ local SETTING_HELP = {
 	maxPriceAgeDays = "макс. вік цін аукціону, днів",
 	minProfit = "мінімальний прибуток за крафт, мідь",
 	results = "скільки рядків показувати в кожній секції",
-	corrections = "1 — коригувати прогноз за фактичними продажами/купівлями/часом крафту, 0 — ні",
-	essences = "1 — рахувати об'єднання есенцій (без професії), 0 — ні",
+	corrections = "1 - коригувати прогноз за фактичними продажами/купівлями/часом крафту, 0 - ні",
+	essences = "1 - рахувати об'єднання есенцій (без професії), 0 - ні",
 }
 
 local function printTop(n)
@@ -276,7 +276,7 @@ local function printTop(n)
 		if #list == 0 and not SECTION[kind].hideEmpty then print("  нічого вигідного") end
 		for i = 1, math.min(n, #list) do
 			local a = list[i]
-			print(string.format("  %d. %s — %s/год", i, a.title, ns.Coin(a.perHour)))
+			print(string.format("  %d. %s - %s/год", i, a.title, ns.Coin(a.perHour)))
 		end
 	end
 end
@@ -298,7 +298,7 @@ SlashCmdList.WHATTODO = function(msg)
 			ns.Refresh()
 		else
 			ns.Out("налаштування (/wtd set <назва> <число>):")
-			for k, help in pairs(SETTING_HELP) do print(string.format("  %s = %s — %s", k, tostring(ns.Setting(k)), help)) end
+			for k, help in pairs(SETTING_HELP) do print(string.format("  %s = %s - %s", k, tostring(ns.Setting(k)), help)) end
 		end
 	elseif cmd == "reset" then
 		WhatToDoDB.settings = {}
@@ -307,7 +307,7 @@ SlashCmdList.WHATTODO = function(msg)
 	elseif cmd == "minimap" then
 		WhatToDoDB.settings.minimapHide = (ns.Setting("minimapHide") == 1) and 0 or 1
 		ns.UpdateMinimapButton()
-		ns.Out(ns.Setting("minimapHide") == 1 and "кнопку біля мінікарти сховано (/wtd minimap — повернути)." or "кнопку біля мінікарти показано.")
+		ns.Out(ns.Setting("minimapHide") == 1 and "кнопку біля мінікарти сховано (/wtd minimap - повернути)." or "кнопку біля мінікарти показано.")
 	elseif cmd == "check" and rest ~= "" then
 		ns.Out("чому пропонується чи ні: " .. rest)
 		ns.Explain(rest)
@@ -339,7 +339,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій.")
 	else
-		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd check <предмет> — чому (не) пропонується · /wtd debug · /wtd minimap — сховати/показати кнопку · /wtd stats — факт продажів · /wtd reset · /wtd ledger reset · /wtd forget — забути рецепти персонажа")
+		ns.Out("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа")
 	end
 end
 

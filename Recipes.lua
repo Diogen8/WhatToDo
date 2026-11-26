@@ -258,14 +258,14 @@ local function recordSkills()
 end
 ns.RecordSkills = recordSkills
 
--- "Diogen (Blacksmithing 210, Mining 230), Trader (—)" for messages.
+-- "Diogen (Blacksmithing 210, Mining 230), Trader (-)" for messages.
 function ns.KnownCharsText()
 	local parts = {}
 	for _, c in pairs((WhatToDoDB and WhatToDoDB.chars) or {}) do
 		local profs = {}
 		for name, rank in pairs(c.professions or {}) do profs[#profs + 1] = string.format("%s %d", name, rank) end
 		table.sort(profs)
-		parts[#parts + 1] = string.format("%s (%s)", c.name or "?", #profs > 0 and table.concat(profs, ", ") or "—")
+		parts[#parts + 1] = string.format("%s (%s)", c.name or "?", #profs > 0 and table.concat(profs, ", ") or "-")
 	end
 	table.sort(parts)
 	return #parts > 0 and table.concat(parts, "; ") or "ще жодного (зайдіть кожним персонажем)"

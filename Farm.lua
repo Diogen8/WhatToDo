@@ -9,7 +9,8 @@ local _, ns = ...
 local SKIP_KINDS = { purchase = true, quest = true, mail = true, trade = true, vendor = true }
 local GATHER = { mining = true, herbalism = true, fishing = true }
 local MIN_GATHERS = 3 -- fewer gathers at a spot than this is a stray node, not a route
-local GATHER_LABEL = { mining = "Жил", herbalism = "Трав", fishing = "Улову", skinning = "Шкур" }
+local GATHER_LABEL = { mining = "Жил", herbalism = "Трав", fishing = "Закидів", skinning = "Шкур" }
+local RATE_UNIT = { mining = "жил", herbalism = "трав", fishing = "закидів", skinning = "шкур" }
 local CAT_NAME = { farm = "моби", mining = "майнінг", herbalism = "трави", fishing = "риболовля", skinning = "скінінг" }
 
 local function yieldDB()
@@ -177,7 +178,7 @@ function ns.FarmActivities()
 					tip[#tip + 1] = { "Предмети", ns.Coin(v.itemValue * 3600 / s.seconds) .. "/год" }
 					if c.count > 0 then
 						tip[#tip + 1] = { gather and (GATHER_LABEL[cat] or "Збирань") or "Вбивств", string.format("%d (%.0f/год)", c.count, c.count / hours) }
-						if gather then tip[#tip + 1] = { "За одне збирання", ns.Coin(v.value / c.count) } end
+						if gather then tip[#tip + 1] = { "За одне " .. (cat == "fishing" and "закидання" or "збирання"), ns.Coin(v.value / c.count) } end
 					end
 					tip[#tip + 1] = { " ", " " }
 					tip[#tip + 1] = { "Найцінніше:", "" }
@@ -210,15 +211,15 @@ function ns.FarmActivities()
 
 					local detail = string.format("%.1f год даних", hours)
 					if c.count > 0 then
-						detail = detail .. string.format(gather and " · %.0f збирань/год" or " · %.0f вбивств/год", c.count / hours)
+						detail = detail .. string.format(", %.0f %s/год", c.count / hours, gather and (RATE_UNIT[cat] or "збирань") or "вбивств")
 					end
 					if gather then
-						if v.lines[1] then detail = detail .. " · " .. ns.ItemName(v.lines[1].itemID) end
+						if v.lines[1] then detail = detail .. ", " .. ns.ItemName(v.lines[1].itemID) end
 					elseif sources[1] then
-						detail = detail .. " · " .. sourceName(db, sources[1].key)
+						detail = detail .. ", " .. sourceName(db, sources[1].key)
 					end
 					if spotTotal > v.value * 1.05 then
-						detail = detail .. string.format(" · разом на місці %s/год", ns.Coin(spotTotal * 3600 / s.seconds))
+						detail = detail .. string.format(", разом на місці %s/год", ns.Coin(spotTotal * 3600 / s.seconds))
 					end
 
 					out[#out + 1] = {

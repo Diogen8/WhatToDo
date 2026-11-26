@@ -93,8 +93,8 @@ local function evaluate(entry)
 		expectedPerHour = expectedPerHour,
 		corrected = (sellFactor ~= 1) or (cost ~= expectedCost) or (measured ~= nil),
 		detail = entry.section == "learn"
-			and string.format("вивчити %s · %s за крафт · %s", need, ns.Coin(profit), who)
-			or string.format("%s за крафт · %d крафтів/партія · %s", ns.Coin(profit), crafts, who),
+			and string.format("вивчити %s, %s за крафт, %s", need, ns.Coin(profit), who)
+			or string.format("%s за крафт, %d крафтів/партія, %s", ns.Coin(profit), crafts, who),
 		tooltip = tip,
 		profit = profit,
 		crafts = crafts,
@@ -115,9 +115,9 @@ function ns.Explain(query)
 			local a, reason = evaluate(entry)
 			local head = string.format("%s [%s, %s]", name, entry.section == "learn" and "якщо вивчити" or "рекрафт", who)
 			if a then
-				print(string.format("  %s: |cff66ff66пропонується|r — %s/год, %s", head, ns.Coin(a.perHour), a.detail))
+				print(string.format("  %s: |cff66ff66пропонується|r - %s/год, %s", head, ns.Coin(a.perHour), a.detail))
 			else
-				print(string.format("  %s: |cffff6666ні|r — %s", head, reason or "?"))
+				print(string.format("  %s: |cffff6666ні|r - %s", head, reason or "?"))
 			end
 		end
 	end
@@ -126,7 +126,7 @@ function ns.Explain(query)
 		for _, r in ipairs(ns.CATALOG) do
 			local name = ns.ItemName(r.product)
 			if r.product == id or (q ~= "" and name:lower():find(q, 1, true)) then
-				needs[#needs + 1] = string.format("%s — потрібно %s %d", name, r.profession, r.skill)
+				needs[#needs + 1] = string.format("%s - потрібно %s %d", name, r.profession, r.skill)
 			end
 		end
 		if #needs > 0 then
