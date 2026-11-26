@@ -15,8 +15,9 @@ local lastTotal = 0
 local function statusText(count)
 	local parts = {}
 	if ns.shareStatus then return "|cff66ccff" .. ns.shareStatus .. "|r" end
-	parts[#parts + 1] = ns.HasAuctionator() and T("Auctionator: є") or T("|cffff6666Auctionator: немає|r")
-	parts[#parts + 1] = ns.HasYield() and T("Yield: є") or T("|cffff6666Yield: немає|r")
+	-- a dependency's name: green when it is loaded, red when not
+	parts[#parts + 1] = (ns.HasAuctionator() and "|cff66ff66" or "|cffff6666") .. "Auctionator|r"
+	parts[#parts + 1] = (ns.HasYield() and "|cff66ff66" or "|cffff6666") .. "Yield|r"
 	local recipes, chars = ns.RecipeCount()
 	parts[#parts + 1] = string.format(T("рецептів: %d, персонажів: %d"), recipes, chars)
 	parts[#parts + 1] = string.format(T("варіантів: %d"), count)

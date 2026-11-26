@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.9
+- Status line: Auctionator and Yield are shown by name, green when loaded and red when not.
+
 ## 0.17.8
 - Smelting icon fixed: taken from the game's Smelting spell (the icon file path didn't exist on Forever, so rows showed no icon).
 
