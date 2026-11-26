@@ -45,9 +45,13 @@ local HEADER_HEIGHT = 26
 local SECTION = {
 	craft = { title = "РЕКРАФТ · АФК", note = "купити матеріали → скрафтити → продати", color = { 0.4, 0.67, 1 } },
 	learn = { title = "РЕКРАФТ · ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
-	farm = { title = "ФАРМ", note = "місця з історії Yield, лут за сьогоднішніми цінами", color = { 0.4, 0.8, 0.4 } },
+	farm = { title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
+	mining = { title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
+	herbalism = { title = "ЗБІР ТРАВ", note = "трави, за годину на місці", color = { 0.45, 0.85, 0.45 }, hideEmpty = true },
+	skinning = { title = "СКІНІНГ", note = "шкури з мобів, за годину на місці", color = { 0.85, 0.7, 0.45 }, hideEmpty = true },
+	fishing = { title = "РИБОЛОВЛЯ", note = "улов, за годину на місці", color = { 0.3, 0.85, 0.8 }, hideEmpty = true },
 }
-local SECTION_ORDER = { "craft", "learn", "farm" }
+local SECTION_ORDER = { "craft", "learn", "farm", "mining", "herbalism", "skinning", "fishing" }
 
 local function makeRow(parent)
 	local r = CreateFrame("Button", nil, parent)
@@ -165,13 +169,14 @@ function ns.Refresh()
 end
 
 local EMPTY_TEXT = "Поки нічого порадити.\n\n" ..
+	"Збір (майнінг, трави, скінінг, риболовля) береться з тих самих сесій Yield.\n" ..
 	"Рекрафт: проскануйте аукціон в Auctionator і зайдіть кожним персонажем хоч раз,\n" ..
 	"щоб WhatToDo запам'ятав їхні професії (вікна професій — для точних рецептів).\n" ..
 	"Фарм: увімкніть Yield і пофарміть хоча б 10 хв на одному місці."
 
 local function create()
 	local f = CreateFrame("Frame", "WhatToDoFrame", UIParent, "BasicFrameTemplateWithInset")
-	f:SetSize(620, 480)
+	f:SetSize(730, 500)
 	f:SetPoint("CENTER")
 	f:SetFrameStrata("HIGH")
 	f:SetMovable(true)
@@ -189,15 +194,17 @@ local function create()
 	f.tabs = {}
 	local function tab(key, label, x)
 		local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-		b:SetSize(80, 22)
+		b:SetSize(82, 22)
 		b:SetPoint("TOPLEFT", x, -30)
 		b:SetText(label)
 		b:SetScript("OnClick", function() filter = key; ns.Refresh() end)
 		f.tabs[key] = b
 	end
-	tab("all", "Усе", 12)
-	tab("farm", "Фарм", 96)
-	tab("craft", "Рекрафт", 180)
+	local TABS = {
+		{ "all", "Усе" }, { "craft", "Рекрафт" }, { "farm", "Моби" }, { "mining", "Майнінг" },
+		{ "herbalism", "Трави" }, { "skinning", "Скінінг" }, { "fishing", "Риболовля" },
+	}
+	for i, t in ipairs(TABS) do tab(t[1], t[2], 12 + (i - 1) * 86) end
 
 	local refresh = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	refresh:SetSize(90, 22)
@@ -209,14 +216,14 @@ local function create()
 	scroll:SetPoint("TOPLEFT", 10, -58)
 	scroll:SetPoint("BOTTOMRIGHT", -32, 30)
 	local content = CreateFrame("Frame", nil, scroll)
-	content:SetSize(570, 1)
+	content:SetSize(680, 1)
 	scroll:SetScrollChild(content)
 	scroll:HookScript("OnSizeChanged", function(_, w) content:SetWidth(w) end)
 	f.content = content
 
 	f.empty = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	f.empty:SetPoint("CENTER", 0, -20)
-	f.empty:SetWidth(540)
+	f.empty:SetWidth(640)
 	f.empty:SetText(EMPTY_TEXT)
 
 	f.status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")

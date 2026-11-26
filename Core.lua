@@ -82,18 +82,19 @@ events:SetScript("OnEvent", function(self, event, name)
 	end
 end)
 
--- All activities of one kind ("farm", "craft" or "learn"), or of every kind (nil / "all"), best first.
+-- Activities of one kind ("craft", "learn", "farm", "mining", "herbalism", "skinning", "fishing"), or of
+-- every kind (nil / "all"), best first.
 function ns.Rank(filter)
 	local list = {}
 	local all = (filter == nil or filter == "all")
-	if (all or filter == "farm") and ns.FarmActivities then
-		for _, a in ipairs(ns.FarmActivities()) do list[#list + 1] = a end
-	end
-	if (all or filter == "craft" or filter == "learn") and ns.CraftActivities then
-		for _, a in ipairs(ns.CraftActivities()) do
+	local crafting = (filter == "craft" or filter == "learn")
+	local function take(activities)
+		for _, a in ipairs(activities) do
 			if all or a.kind == filter then list[#list + 1] = a end
 		end
 	end
+	if (all or not crafting) and ns.FarmActivities then take(ns.FarmActivities()) end
+	if (all or crafting) and ns.CraftActivities then take(ns.CraftActivities()) end
 	table.sort(list, function(a, b) return a.perHour > b.perHour end)
 	return list
 end
