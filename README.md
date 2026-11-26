@@ -1,4 +1,4 @@
-# WhatToDo 0.17.7
+# WhatToDo 0.17.8
 
 **[Українська](#українська) | [English](#english) | [For AI agents](#for-ai-agents-install-and-update)**
 

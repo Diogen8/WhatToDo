@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.8
+- Smelting icon fixed: taken from the game's Smelting spell (the icon file path didn't exist on Forever, so rows showed no icon).
+
 ## 0.17.7
 - Smelting recipes show the Smelting icon.
 

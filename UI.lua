@@ -41,11 +41,22 @@ local ALL_ICON = "Interface\\Icons\\INV_Misc_Coin_02"
 -- A recraft row shows its profession's own icon (the gear stays on the tab and for anything unknown).
 local PROFESSION_ICON = {
 	Blacksmithing = "Trade_BlackSmithing", Tailoring = "Trade_Tailoring", Leatherworking = "INV_Misc_ArmorKit_17",
-	Engineering = "Trade_Engineering", Mining = "Spell_Fire_FlameBlade", Alchemy = "Trade_Alchemy", Enchanting = "Trade_Engraving",
+	Engineering = "Trade_Engineering", Mining = "Trade_Mining", Alchemy = "Trade_Alchemy", Enchanting = "Trade_Engraving",
 	Essences = "Trade_Engraving", Cooking = "INV_Misc_Food_15", ["First Aid"] = "Spell_Holy_SealOfSacrifice",
 	Jewelcrafting = "INV_Misc_Gem_01", Inscription = "INV_Inscription_Tradeskill01",
 }
+-- Smelting's icon straight from the game's own spell (2656), as a file ID: the path differs between clients.
+local function spellIcon(spellID)
+	local ok, tex = pcall(function()
+		return (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellID)) or (GetSpellTexture and GetSpellTexture(spellID))
+	end)
+	return ok and tex or nil
+end
 local function activityIcon(a)
+	if a.kind == "craft" and a.profession == "Mining" then
+		local tex = spellIcon(2656)
+		if tex then return tex end
+	end
 	local p = a.kind == "craft" and a.profession and PROFESSION_ICON[a.profession]
 	return p and ("Interface\\Icons\\" .. p) or SECTION[a.kind].icon
 end
