@@ -96,6 +96,10 @@ local function evaluate(entry)
 	else
 		tip[#tip + 1] = { T("Факт продажів"), T("ще немає") }
 	end
+	local batches, inPlus, openBatch = ns.BatchStats and ns.BatchStats(r.product)
+	if (batches or 0) > 0 or openBatch then
+		tip[#tip + 1] = { T("Партії"), string.format(T("закрито %d, у плюс %d"), batches or 0, inPlus or 0) .. (openBatch and T(", одна відкрита") or "") }
+	end
 	if measured then tip[#tip + 1] = { T("Час на крафт (факт)"), string.format(T("%.1f с"), measured) } end
 	tip[#tip + 1] = { T("Без поправок було б"), ns.Coin(expectedPerHour) .. T("/год") }
 	tip[#tip + 1] = { T("Довіра"), string.format("%d%%: ", math.floor(trust * 100 + 0.5)) .. ns.TrustExplain(priceTrust, evidence,

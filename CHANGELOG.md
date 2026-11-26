@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.0
+- Trust model, stage 1: collecting outcomes. Recraft batches (cost from purchase lots first-in-first-out, active time with the AH, mail and profession windows, posts, sales, returns; closed when all sold or 2 days after posting, unsold at vendor price; success = profit). Farm sessions checked against earlier sessions at the same spot (success = at least half the forecast), including sessions recorded before. `/wtd results`, batch line in recraft tooltips.
+
 ## 0.14.0
 - Sharing checks the data format, not the addon version: copies with different versions can share as long as the format of the shared data is the same. The format (shown by `/wtd version`) changes only when the shared data's structure or meaning changes. Sharing with 0.12-0.13 is not possible (they demand an identical version).
 

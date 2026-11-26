@@ -434,6 +434,8 @@ SlashCmdList.WHATTODO = function(msg)
 		else
 			ns.Out("/wtd lang en | /wtd lang uk")
 		end
+	elseif cmd == "results" then
+		ns.ResultsReport()
 	elseif cmd == "guide" then
 		ns.ShowGuide()
 	elseif cmd == "share" then
@@ -459,7 +461,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out(T("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій."))
 	else
-		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd guide - інструкція, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
+		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd results - результати партій і сесій, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd guide - інструкція, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
 	end
 end
 

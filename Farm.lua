@@ -26,6 +26,7 @@ local function yieldAddon()
 end
 
 function ns.HasYield() return yieldDB() ~= nil end
+function ns.YieldData() return yieldDB() end
 
 -- Copper one looted unit is worth now.
 local function valueOf(itemID, yield, cache)
@@ -45,6 +46,16 @@ local function valueOf(itemID, yield, cache)
 	end
 	cache[itemID] = v
 	return v
+end
+
+-- Today's value of one spot category ({ money, items }): coin plus loot at today's prices, corrected by real sales.
+function ns.CategoryValue(c, cache)
+	local yield = yieldAddon()
+	local value = c.money or 0
+	for itemID, count in pairs(c.items or {}) do
+		value = value + valueOf(itemID, yield, cache) * count * ns.SellFactor(itemID)
+	end
+	return value
 end
 
 local function zoneName(db, mapID)
@@ -70,7 +81,8 @@ end
 -- Every spot from Yield (all characters) and, when includeShared, from data friends shared (Share.lua):
 -- spots[mapID .. "\t" .. subzone] = { mapID, subzone, seconds, chars = { name = seconds }, cats = { cat = {
 --   money, count, items = { id = n }, sources = { key = n } } }, zoneName (shared spots) }.
-function ns.CollectSpots(includeShared)
+-- keep(ds, char): optional filter over Yield datasets (Episodes.lua backtests one session against earlier ones).
+function ns.CollectSpots(includeShared, keep)
 	local db = yieldDB()
 
 	-- Each spot's income split by where it came from (its category):
@@ -134,8 +146,10 @@ function ns.CollectSpots(includeShared)
 	if db and type(db.characters) == "table" then
 		for _, char in pairs(db.characters) do
 			local name = char.name or "?"
-			for _, ds in ipairs(char.sessions or {}) do addDataset(ds, name) end
-			if char.live then addDataset(char.live, name) end
+			for _, ds in ipairs(char.sessions or {}) do
+				if not keep or keep(ds, char) then addDataset(ds, name) end
+			end
+			if char.live and (not keep or keep(char.live, char)) then addDataset(char.live, name) end
 		end
 	end
 

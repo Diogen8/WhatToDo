@@ -109,6 +109,7 @@ WhatToDo підказує, чим зараз найвигідніше зайня
 /wtd top [n] - найкращі варіанти в чат
 /wtd check <предмет> - чому рецепт пропонується чи ні
 /wtd stats - фактичні продажі
+/wtd results - закриті партії рекрафту і перевірені сесії фарму
 /wtd share - поділитися даними з ціллю
 /wtd shared [clear [нік]] - отримані дані
 /wtd set - налаштування розрахунку
@@ -218,6 +219,7 @@ If someone in your guild, group or friends list has a newer WhatToDo, the addon 
 /wtd top [n] - best options to chat
 /wtd check <item> - why a recipe is or isn't suggested
 /wtd stats - actual sales
+/wtd results - closed recraft batches and checked farm sessions
 /wtd share - share data with your target
 /wtd shared [clear [name]] - received data
 /wtd set - calculation settings

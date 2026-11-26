@@ -91,15 +91,18 @@ local function recordSale(name, net, gross, count)
 		s.expNet, s.expFor = s.expNet + expected, s.expFor + net
 	end
 	log("sold", name, unitsKnown and units or nil, net, expected)
+	if ns.EpisodeSale and id then ns.EpisodeSale(id, units, net) end
 end
 
-local function recordExpired(name, units)
+local function recordExpired(name, units, itemID)
 	local l = ledger()
 	if not (l and name) then return end
 	local s = l.sales[name] or { units = 0, events = 0, net = 0, expired = 0, expiredEvents = 0, expNet = 0, expFor = 0 }
 	l.sales[name] = s
 	s.expired, s.expiredEvents, s.last = s.expired + (units or 1), s.expiredEvents + 1, time()
 	log("expired", name, units or 1, 0, nil)
+	itemID = itemID or idByName(name)
+	if ns.EpisodeReturn and itemID then ns.EpisodeReturn(itemID, units or 1) end
 end
 
 local function recordBuy(name, itemID, units, paid)
@@ -117,6 +120,7 @@ local function recordBuy(name, itemID, units, paid)
 		b.expected, b.paidFor = b.expected + expected, b.paidFor + paid
 	end
 	log("bought", name, units, paid, expected)
+	if ns.EpisodeBuy and itemID then ns.EpisodeBuy(itemID, units, paid) end
 end
 
 local recent = {} -- fingerprint -> GetTime() when booked
@@ -145,9 +149,9 @@ local function processMail(index, what)
 		recordBuy(name or itemName, itemID, n, paid)
 	elseif what ~= "money" and subject:match(EXPIRED) then
 		recent[fp] = now
-		local name, _, _, n
-		if GetInboxItem then name, _, _, n = GetInboxItem(index, 1) end
-		recordExpired(name or subject:match(EXPIRED), n)
+		local name, itemID, _, n
+		if GetInboxItem then name, itemID, _, n = GetInboxItem(index, 1) end
+		recordExpired(name or subject:match(EXPIRED), n, itemID)
 	end
 end
 
@@ -176,6 +180,7 @@ ev:SetScript("OnEvent", function(_, _, msg)
 		c.seconds, c.gaps = c.seconds + (now - lastCreate[id]), c.gaps + 1
 	end
 	lastCreate[id] = now
+	if ns.EpisodeCraft then ns.EpisodeCraft(id, units) end
 end)
 
 ---------------------------------------------------------------------------
