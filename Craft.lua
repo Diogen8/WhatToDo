@@ -35,6 +35,16 @@ local function evaluate(entry)
 		parts[#parts + 1] = { id = id, count = count, unit = unit * buyFactor, source = source, factor = buyFactor }
 	end
 
+	-- trust in the prices: the stalest AH price among the product and the AH-bought reagents
+	local stalestHours, stalestItem = ns.PriceHours(r.product) or math.huge, r.product
+	for _, p in ipairs(parts) do
+		if p.source == "AH" then
+			local h = ns.PriceHours(p.id) or math.huge
+			if h > stalestHours then stalestHours, stalestItem = h, p.id end
+		end
+	end
+	local trust = ns.TrustOfHours(stalestHours)
+
 	local profit = revenue - cost
 	if profit < ns.Setting("minProfit") then return nil, string.format("прибуток за крафт %s < мінімуму %s (продаж %s, реагенти %s)", ns.Coin(profit), ns.Coin(ns.Setting("minProfit")), ns.Coin(revenue), ns.Coin(cost)) end
 
@@ -82,7 +92,7 @@ local function evaluate(entry)
 	end
 	if measured then tip[#tip + 1] = { "Час на крафт (факт)", string.format("%.1f с", measured) } end
 	tip[#tip + 1] = { "Без поправок було б", ns.Coin(expectedPerHour) .. "/год" }
-	tip[#tip + 1] = { "Ціни сканувались", (age == 0) and "сьогодні" or string.format("%d дн. тому", age or 0) }
+	tip[#tip + 1] = { "Довіра до цін", (ns.TrustLabel(trust)) .. string.format(" (найстаріша: %s, %s тому)", ns.ItemName(stalestItem), ns.AgeText(stalestHours)) }
 	tip[#tip + 1] = { entry.section == "learn" and "Вивчити" or "Професія", need }
 	tip[#tip + 1] = { entry.section == "learn" and "Вільний слот у" or "Хто може", who }
 	if r.catalog then tip[#tip + 1] = { "Джерело рецепта", "каталог (у тренера)" } end
@@ -100,6 +110,9 @@ local function evaluate(entry)
 		profit = profit,
 		crafts = crafts,
 		product = r.product,
+		trust = trust,
+		trustHours = stalestHours,
+		trustItem = stalestItem,
 		who = who,
 		need = need,
 		conversion = r.profession == "Essences",
@@ -120,7 +133,7 @@ function ns.Explain(query)
 			local a, reason = evaluate(entry)
 			local head = string.format("%s [%s, %s]", name, entry.section == "learn" and "якщо вивчити" or "рекрафт", who)
 			if a then
-				print(string.format("  %s: |cff66ff66пропонується|r - %s/год, %s", head, ns.Coin(a.perHour), a.detail))
+				print(string.format("  %s: |cff66ff66пропонується|r - %s/год, %s, %s (%s: %s тому)", head, ns.Coin(a.perHour), a.detail, (ns.TrustLabel(a.trust)), ns.ItemName(a.trustItem), ns.AgeText(a.trustHours)))
 			else
 				print(string.format("  %s: |cffff6666ні|r - %s", head, reason or "?"))
 			end

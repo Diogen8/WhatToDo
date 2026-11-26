@@ -158,7 +158,21 @@ function ns.FarmActivities()
 					lines[#lines + 1] = { itemID = itemID, count = count, value = v, factor = factor }
 				end
 				table.sort(lines, function(a, b) return a.value > b.value end)
-				local v = { cat = cat, c = c, value = c.money + itemValue, expected = c.money + expectedItems, itemValue = itemValue, lines = lines }
+				-- trust: each AH-priced item's price freshness, weighted by its share of the value; coin and
+				-- vendor-priced items count as fully trusted
+				local total = c.money + itemValue
+				local trusted, stalestHours, stalestItem = c.money, 0, nil
+				for _, l in ipairs(lines) do
+					local hours = ns.AuctionPrice(l.itemID) and ns.PriceHours(l.itemID)
+					local t = hours and ns.TrustOfHours(hours) or 1
+					trusted = trusted + l.value * t
+					if hours and total > 0 and l.value / total >= 0.05 and hours > stalestHours then
+						stalestHours, stalestItem = hours, l.itemID
+					end
+				end
+				local trust = total > 0 and trusted / total or 1
+				local v = { cat = cat, c = c, value = total, expected = c.money + expectedItems, itemValue = itemValue, lines = lines,
+					trust = trust, stalestHours = stalestItem and stalestHours or nil, stalestItem = stalestItem }
 				valued[#valued + 1] = v
 				spotTotal = spotTotal + v.value
 			end
@@ -205,6 +219,7 @@ function ns.FarmActivities()
 						end
 					end
 					tip[#tip + 1] = { "Персонажі", table.concat(chars, ", ") }
+					tip[#tip + 1] = { "Довіра до цін", (ns.TrustLabel(v.trust)) .. (v.stalestItem and string.format(" (найстаріша: %s, %s тому)", ns.ItemName(v.stalestItem), ns.AgeText(v.stalestHours)) or "") }
 					if math.abs(v.value - v.expected) >= 1 then
 						tip[#tip + 1] = { "Без поправок було б", ns.Coin(v.expected * 3600 / s.seconds) .. "/год" }
 					end
@@ -231,6 +246,7 @@ function ns.FarmActivities()
 						detail = detail,
 						tooltip = tip,
 						confidence = math.min(1, s.seconds / 3600), -- an hour of data counts as solid
+						trust = v.trust,
 					}
 				end
 			end

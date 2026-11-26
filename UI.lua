@@ -27,6 +27,9 @@ local function rowTooltip(row)
 	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
 	GameTooltip:AddLine(a.title, 1, 0.82, 0, true)
 	GameTooltip:AddDoubleLine("Золота за годину", coinText(a.perHour), 1, 1, 1, 1, 1, 1)
+	if a.trust and a.trust < 0.5 then
+		GameTooltip:AddLine("Ціни застарілі (понад 12 год) - перевірте аукціон перед тим, як діяти.", 1, 0.3, 0.3, true)
+	end
 	for _, line in ipairs(a.tooltip or {}) do
 		GameTooltip:AddDoubleLine(line[1], line[2], 0.8, 0.8, 0.8, 1, 1, 1)
 	end
@@ -86,9 +89,12 @@ local function makeRow(parent)
 	r.title:SetPoint("RIGHT", r.value, "LEFT", -8, 0)
 	r.title:SetJustifyH("LEFT")
 	r.title:SetWordWrap(false)
+	r.trust = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	r.trust:SetPoint("TOPRIGHT", -6, -21)
+	r.trust:SetJustifyH("RIGHT")
 	r.detail = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	r.detail:SetPoint("TOPLEFT", 32, -21)
-	r.detail:SetPoint("RIGHT", -6, 0)
+	r.detail:SetPoint("RIGHT", r.trust, "LEFT", -8, 0)
 	r.detail:SetJustifyH("LEFT")
 	r.detail:SetWordWrap(false)
 	r.detail:SetTextColor(0.75, 0.75, 0.75)
@@ -114,7 +120,7 @@ local function setHeader(r, kind, count)
 	r.header:SetTextColor(c[1], c[2], c[3])
 	r.headerNote:SetText(count > 0 and s.note or "нічого вигідного (/wtd - підказки)")
 	r.header:Show(); r.headerNote:Show()
-	r.rank:Hide(); r.value:Hide(); r.title:Hide(); r.detail:Hide()
+	r.rank:Hide(); r.value:Hide(); r.title:Hide(); r.detail:Hide(); r.trust:Hide()
 end
 
 local function setActivity(r, a, rank)
@@ -134,7 +140,10 @@ local function setActivity(r, a, rank)
 	end
 	r.detail:SetText(detail)
 	r.value:SetText(coinText(a.perHour) .. "/год")
-	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show()
+	local label, tr, tg, tb = ns.TrustLabel(a.trust)
+	r.trust:SetText(label)
+	r.trust:SetTextColor(tr, tg, tb)
+	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show(); r.trust:Show()
 end
 
 function ns.Refresh()
@@ -334,6 +343,9 @@ SlashCmdList.WHATTODO = function(msg)
 			print("  вікно професії в цій сесії не відкривалось")
 		end
 		print("  Auctionator: " .. has(ns.HasAuctionator()) .. ", Yield: " .. has(ns.HasYield()))
+		local seen = 0
+		for _ in pairs(WhatToDoDB.priceSeen or {}) do seen = seen + 1 end
+		print(string.format("  точний час цін: перехоплення %s, записано предметів: %d", has(ns.PriceHookActive()), seen))
 	elseif cmd == "stats" then
 		ns.LedgerReport()
 	elseif cmd == "ledger" and rest == "reset" then
