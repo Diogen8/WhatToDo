@@ -269,6 +269,8 @@ local EN = {
 	["  %s (%s): факт %s/год, прогноз %s/год - %s"] = "  %s (%s): actual %s/h, forecast %s/h - %s",
 	["|cff66ff66справдилось|r"] = "|cff66ff66came true|r",
 	["|cffff6666ні|r"] = "|cffff6666no|r",
+	["Рівень мобів"] = "Mob level",
+	[" (з %d рівня)"] = " (from level %d)",
 }
 
 function ns.Lang()

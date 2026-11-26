@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.0
+- Mob farming spots are left out when their mobs are more than 2 levels above the current character (levels from Questie, else seen on targets / mouseover / nameplates).
+- "If learned" respects the character level a trainer requires: rank 75+ from level 10, 150+ from 20, 225+ from 35.
+
 ## 0.15.0
 - Trust model, stage 1: collecting outcomes. Recraft batches (cost from purchase lots first-in-first-out, active time with the AH, mail and profession windows, posts, sales, returns; closed when all sold or 2 days after posting, unsold at vendor price; success = profit). Farm sessions checked against earlier sessions at the same spot (success = at least half the forecast), including sessions recorded before. `/wtd results`, batch line in recraft tooltips.
 

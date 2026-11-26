@@ -9,6 +9,7 @@ local T = function(s) return ns.T(s) end
 
 local SKIP_KINDS = { purchase = true, quest = true, mail = true, trade = true, vendor = true }
 local GATHER = { mining = true, herbalism = true, fishing = true }
+local MAX_LEVEL_ABOVE = 2 -- mob farming spots whose mobs are more than this above the character are left out
 local MIN_GATHERS = 3 -- fewer gathers at a spot than this is a stray node, not a route
 local GATHER_LABEL = { mining = "Жил", herbalism = "Трав", fishing = "Закидів", skinning = "Шкур" }
 local RATE_UNIT = { mining = "жил", herbalism = "трав", fishing = "закидів", skinning = "шкур" }
@@ -46,6 +47,83 @@ local function valueOf(itemID, yield, cache)
 	end
 	cache[itemID] = v
 	return v
+end
+
+---------------------------------------------------------------------------
+-- Mob levels: Questie's NPC database when it's loaded, else the levels WhatToDo saw on targets, mouseover and
+-- nameplates (WhatToDoDB.mobLevels[npcID] = { lo, hi }). A skull (level -1) counts as 99.
+---------------------------------------------------------------------------
+
+local function questieLevels(npcID)
+	if not (QuestieLoader and QuestieLoader.ImportModule) then return nil end
+	local ok, qdb = pcall(QuestieLoader.ImportModule, QuestieLoader, "QuestieDB")
+	if not (ok and type(qdb) == "table" and qdb.QueryNPCSingle) then return nil end
+	local okLo, lo = pcall(qdb.QueryNPCSingle, npcID, "minLevel")
+	local okHi, hi = pcall(qdb.QueryNPCSingle, npcID, "maxLevel")
+	if okLo and type(lo) == "number" and lo > 0 then
+		return lo, (okHi and type(hi) == "number" and hi >= lo) and hi or lo
+	end
+end
+
+function ns.MobLevels(npcID)
+	local lo, hi = questieLevels(npcID)
+	if lo then return lo, hi end
+	local seen = WhatToDoDB and WhatToDoDB.mobLevels and WhatToDoDB.mobLevels[npcID]
+	if seen then return seen[1], seen[2] end
+end
+
+local function rememberLevel(unit)
+	if not (WhatToDoDB and UnitExists and UnitExists(unit)) or UnitIsPlayer(unit) then return end
+	local guid = UnitGUID(unit)
+	local id = type(guid) == "string" and tonumber(guid:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
+	local level = UnitLevel(unit)
+	if not id or type(level) ~= "number" then return end
+	if level <= 0 then level = 99 end
+	WhatToDoDB.mobLevels = WhatToDoDB.mobLevels or {}
+	local t = WhatToDoDB.mobLevels[id]
+	if t then
+		t[1], t[2] = math.min(t[1], level), math.max(t[2], level)
+	else
+		WhatToDoDB.mobLevels[id] = { level, level }
+	end
+end
+
+local levelWatch = CreateFrame("Frame")
+for _, event in ipairs({ "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED" }) do
+	pcall(levelWatch.RegisterEvent, levelWatch, event)
+end
+levelWatch:SetScript("OnEvent", function(_, event, unit)
+	-- unit values can be restricted in some places on newer clients: never let that break anything
+	pcall(rememberLevel, event == "PLAYER_TARGET_CHANGED" and "target" or event == "UPDATE_MOUSEOVER_UNIT" and "mouseover" or unit)
+end)
+
+-- A spot's mob level: the kill-weighted median of its mobs' lowest levels, and the range of the mobs that make up
+-- at least a tenth of the kills. nil when no level is known.
+local function spotMobLevel(c)
+	local list, total = {}, 0
+	for key, n in pairs(c.sources or {}) do
+		local id = tonumber(key:match("^c:(%d+)$"))
+		local lo, hi
+		if id then lo, hi = ns.MobLevels(id) end
+		if lo and n > 0 then
+			list[#list + 1] = { lo = lo, hi = hi, n = n }
+			total = total + n
+		end
+	end
+	if total == 0 then return nil end
+	table.sort(list, function(a, b) return a.lo < b.lo end)
+	local acc, median = 0, list[#list].lo
+	for _, e in ipairs(list) do
+		acc = acc + e.n
+		if acc >= total / 2 then median = e.lo break end
+	end
+	local lo, hi
+	for _, e in ipairs(list) do
+		if e.n >= total * 0.1 then
+			lo, hi = math.min(lo or e.lo, e.lo), math.max(hi or e.hi, e.hi)
+		end
+	end
+	return median, lo or median, hi or median
 end
 
 -- Today's value of one spot category ({ money, items }): coin plus loot at today's prices, corrected by real sales.
@@ -244,7 +322,11 @@ function ns.FarmActivities()
 			for _, v in ipairs(valued) do
 				local c, cat = v.c, v.cat
 				local gather = cat ~= "farm"
-				if v.value > 0 and (not gather or c.count >= MIN_GATHERS) then
+				-- mob farming: not above the current character's level + 2
+				local mobLevel, mobLo, mobHi
+				if not gather then mobLevel, mobLo, mobHi = spotMobLevel(c) end
+				local tooHigh = mobLevel and mobLevel > (UnitLevel("player") or 0) + MAX_LEVEL_ABOVE
+				if v.value > 0 and (not gather or c.count >= MIN_GATHERS) and not tooHigh then
 					local sources = {}
 					for key, n in pairs(c.sources) do sources[#sources + 1] = { key = key, n = n } end
 					table.sort(sources, function(a, b) return a.n > b.n end)
@@ -281,6 +363,9 @@ function ns.FarmActivities()
 								tip[#tip + 1] = { "  + " .. T(CAT_NAME[other.cat] or other.cat), ns.Coin(other.value * 3600 / s.seconds) .. T("/год") }
 							end
 						end
+					end
+					if mobLevel then
+						tip[#tip + 1] = { T("Рівень мобів"), mobLo == mobHi and tostring(mobLo) or (mobLo .. "-" .. mobHi) }
 					end
 					tip[#tip + 1] = { T("Персонажі"), table.concat(chars, ", ") }
 					tip[#tip + 1] = { T("Довіра"), string.format("%d%%: ", math.floor(v.trust * 100 + 0.5)) .. ns.TrustExplain(v.priceTrust, v.evidence,

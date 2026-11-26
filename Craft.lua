@@ -72,6 +72,7 @@ local function evaluate(entry)
 
 	local who = (#entry.who > 0) and table.concat(entry.who, ", ") or T("будь-хто")
 	local need = (r.profession and r.skill) and string.format("%s %d", r.profession, r.skill) or (r.profession or T("без професії"))
+	if entry.section == "learn" and r.skill then need = need .. string.format(T(" (з %d рівня)"), ns.LevelForSkill(r.skill)) end
 	local listedProduct = ns.Available(r.product)
 	local tip = {
 		{ T("Рецепт"), table.concat(inputs, " + ") },

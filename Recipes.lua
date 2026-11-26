@@ -248,6 +248,7 @@ local function recordSkills()
 		for name, rank in pairs(seen) do c.professions[name] = rank end
 	end
 	c.updated = time()
+	c.level = UnitLevel("player")
 	-- a profession dropped: its recorded recipes go too
 	if complete and WhatToDoDB.recipes[key] then
 		for profession, list in pairs(WhatToDoDB.recipes[key]) do
@@ -275,7 +276,7 @@ end
 
 local skillsScheduled = false
 local sk = CreateFrame("Frame")
-register(sk, { "PLAYER_ENTERING_WORLD", "SKILL_LINES_CHANGED", "SKILL_LINE_SPECS_RANKS_CHANGED" })
+register(sk, { "PLAYER_ENTERING_WORLD", "SKILL_LINES_CHANGED", "SKILL_LINE_SPECS_RANKS_CHANGED", "PLAYER_LEVEL_UP" })
 sk:SetScript("OnEvent", function()
 	if skillsScheduled then return end
 	skillsScheduled = true
@@ -284,6 +285,16 @@ sk:SetScript("OnEvent", function()
 		recordSkills()
 	end)
 end)
+
+-- The character level a trainer asks for the profession rank a recipe needs (Classic): Apprentice to 75 from 5,
+-- Journeyman to 150 from 10, Expert to 225 from 20, Artisan to 300 from 35.
+function ns.LevelForSkill(skill)
+	skill = skill or 0
+	if skill > 225 then return 35 end
+	if skill > 150 then return 20 end
+	if skill > 75 then return 10 end
+	return 5
+end
 
 local function shortName(charKey)
 	local c = WhatToDoDB.chars and WhatToDoDB.chars[charKey]
@@ -354,7 +365,7 @@ function ns.AllRecipes()
 			local rank = professions[r.profession]
 			if rank then
 				if rank >= r.skill then add(r, "craft", shortName(charKey)) end
-			elseif free then
+			elseif free and (c.level or 999) >= ns.LevelForSkill(r.skill) then -- level unknown (not logged in since 0.16): allowed
 				add(r, "learn", shortName(charKey))
 			end
 		end
