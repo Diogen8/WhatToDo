@@ -31,7 +31,11 @@ local function rowTooltip(row)
 	if not a then return end
 	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
 	GameTooltip:AddLine(a.title, 1, 0.82, 0, true)
-	GameTooltip:AddDoubleLine(T("Золота за годину"), coinText(a.perHour), 1, 1, 1, 1, 1, 1)
+	if a.range then
+		GameTooltip:AddDoubleLine(T("Золота за годину"), coinText(a.range[1]) .. " - " .. coinText(a.range[3]), 1, 1, 1, 1, 1, 1)
+	else
+		GameTooltip:AddDoubleLine(T("Золота за годину"), coinText(a.perHour), 1, 1, 1, 1, 1, 1)
+	end
 	if a.priceTrust == 0 then
 		GameTooltip:AddLine(T("Ціни застарілі (понад 12 год) - перевірте аукціон перед тим, як діяти."), 1, 0.3, 0.3, true)
 	end
@@ -144,8 +148,8 @@ local function setActivity(r, a, rank)
 		detail = string.format(T("|cffffcc66факт %.0f%% від прогнозу|r, "), a.perHour / a.expectedPerHour * 100) .. detail
 	end
 	r.detail:SetText(detail)
-	r.value:SetText(coinText(a.perHour) .. T("/год"))
-	local label, tr, tg, tb = ns.TrustLabel(a.trust)
+	r.value:SetText(a.range and (ns.ShortGold(a.range[1]) .. " - " .. ns.ShortGold(a.range[3]) .. T("/год")) or (coinText(a.perHour) .. T("/год")))
+	local label, tr, tg, tb = (a.range and ns.SuccessLabel or ns.TrustLabel)(a.trust)
 	r.trust:SetText(label)
 	r.trust:SetTextColor(tr, tg, tb)
 	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show(); r.trust:Show()

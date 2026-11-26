@@ -230,6 +230,26 @@ function ns.TrustLabel(trust)
 	return text, 1, 0.3, 0.3
 end
 
+-- "успіх 85%", coloured like trust: the model's chance of success (Model.lua).
+function ns.SuccessLabel(p)
+	if not p then return "", 0.6, 0.6, 0.6 end
+	local text = string.format(T("успіх %d%%"), math.floor(p * 100 + 0.5))
+	if p >= 0.75 then return text, 0.3, 0.9, 0.3 end
+	if p >= 0.4 then return text, 1, 0.82, 0.2 end
+	return text, 1, 0.3, 0.3
+end
+
+-- Compact gold for ranges: "15.3g", "2.1g", "54s", "-1.2g".
+function ns.ShortGold(copper)
+	copper = copper or 0
+	local sign = copper < 0 and "-" or ""
+	copper = math.abs(copper)
+	if copper >= 100000 then return sign .. string.format("%dg", math.floor(copper / 10000 + 0.5)) end
+	if copper >= 10000 then return sign .. string.format("%.1fg", copper / 10000) end
+	if copper >= 100 then return sign .. string.format("%ds", math.floor(copper / 100 + 0.5)) end
+	return sign .. string.format("%dc", math.floor(copper + 0.5))
+end
+
 -- Tooltip text explaining a trust value.
 function ns.TrustExplain(priceTrust, evidence, evidenceText)
 	return string.format(T("ціни %d%%, факт %d%%%s"), math.floor((priceTrust or 0) * 100 + 0.5), math.floor((evidence or 0) * 100 + 0.5),

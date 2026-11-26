@@ -302,10 +302,16 @@ function ns.FarmActivities()
 				-- vendor-priced items count as fully trusted
 				local total = c.money + itemValue
 				local trusted, stalestHours, stalestItem = c.money, 0, nil
+				local ahValue, ahHours, gearValue = 0, 0, 0 -- for model 1: AH-priced share, its age, gear share
 				for _, l in ipairs(lines) do
 					local hours = ns.AuctionPrice(l.itemID) and ns.PriceHours(l.itemID)
 					local t = hours and ns.TrustOfHours(hours) or 1
 					trusted = trusted + l.value * t
+					if hours then
+						ahValue = ahValue + l.value
+						ahHours = ahHours + l.value * math.min(hours, 72)
+					end
+					if ns.ItemGroup and ns.ItemGroup(l.itemID) == "gear" then gearValue = gearValue + l.value end
 					if hours and total > 0 and l.value / total >= 0.05 and hours > stalestHours then
 						stalestHours, stalestItem = hours, l.itemID
 					end
@@ -322,6 +328,10 @@ function ns.FarmActivities()
 				local v = { cat = cat, c = c, value = total, expected = c.money + expectedItems, itemValue = itemValue, lines = lines,
 					trust = ns.CombineTrust(priceTrust, evidence), priceTrust = priceTrust, evidence = evidence, realizedShare = realizedShare,
 					stalestHours = stalestItem and stalestHours or nil, stalestItem = stalestItem }
+				if ns.FarmRange and total > 0 then
+					v.range = ns.FarmRange(total * 3600 / s.seconds, s.seconds / 3600, ahValue > 0 and ahHours / ahValue or nil,
+						ahValue / total, gearValue / total)
+				end
 				valued[#valued + 1] = v
 				spotTotal = spotTotal + v.value
 			end
@@ -375,8 +385,12 @@ function ns.FarmActivities()
 						tip[#tip + 1] = { T("Рівень мобів"), mobLo == mobHi and tostring(mobLo) or (mobLo .. "-" .. mobHi) }
 					end
 					tip[#tip + 1] = { T("Персонажі"), table.concat(chars, ", ") }
-					tip[#tip + 1] = { T("Довіра"), string.format("%d%%: ", math.floor(v.trust * 100 + 0.5)) .. ns.TrustExplain(v.priceTrust, v.evidence,
-						string.format(T("реально отримано %d%% вартості"), math.floor(v.realizedShare * 100 + 0.5))) }
+					if v.range then
+						tip[#tip + 1] = { " ", " " }
+						tip[#tip + 1] = { T("Наступна сесія (8 з 10 випадків)"), ns.Coin(v.range.p10) .. " - " .. ns.Coin(v.range.p90) .. T("/год") }
+						tip[#tip + 1] = { T("Не менше половини прогнозу"), string.format("%d%%", math.floor(v.range.success * 100 + 0.5)) }
+						for i, d in ipairs(v.range.drivers) do tip[#tip + 1] = { i == 1 and T("Невизначеність") or " ", d } end
+					end
 					if v.stalestItem then tip[#tip + 1] = { T("Найстаріша ціна"), string.format(T("%s, %s тому"), ns.ItemName(v.stalestItem), ns.AgeText(v.stalestHours)) } end
 					if math.abs(v.value - v.expected) >= 1 then
 						tip[#tip + 1] = { T("Без поправок було б"), ns.Coin(v.expected * 3600 / s.seconds) .. T("/год") }
@@ -398,13 +412,14 @@ function ns.FarmActivities()
 					out[#out + 1] = {
 						kind = cat,
 						title = title,
-						perHour = v.value * 3600 / s.seconds,
+						perHour = v.range and v.range.p50 or v.value * 3600 / s.seconds,
 						expectedPerHour = v.expected * 3600 / s.seconds,
-						corrected = math.abs(v.value - v.expected) >= 1,
+						corrected = not v.range and math.abs(v.value - v.expected) >= 1,
+						range = v.range and { v.range.p10, v.range.p50, v.range.p90 } or nil,
 						detail = detail,
 						tooltip = tip,
 						confidence = math.min(1, s.seconds / 3600), -- an hour of data counts as solid
-						trust = v.trust,
+						trust = v.range and v.range.success or v.trust,
 						priceTrust = v.priceTrust,
 					}
 				end

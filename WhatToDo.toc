@@ -2,7 +2,7 @@
 ## Title: WhatToDo
 ## Notes: Suggests the most gold-per-hour activities: farm spots from Yield's history and buy-craft-sell recrafts priced with Auctionator.
 ## Author: Anatolii
-## Version: 0.16.1
+## Version: 0.17.0
 ## IconTexture: Interface\Icons\INV_Misc_Coin_02
 ## SavedVariables: WhatToDoDB
 ## OptionalDeps: Auctionator, YieldForever, Yield
@@ -15,6 +15,7 @@ Catalog.lua
 Recipes.lua
 MobLevels.lua
 Farm.lua
+Model.lua
 Craft.lua
 UI.lua
 Minimap.lua

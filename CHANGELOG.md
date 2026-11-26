@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0
+- Trust model, stage 2 (model 1). Rows show a range (8 cases in 10) and the chance of success instead of one number and "trust":
+  - recraft: item groups with their own starting assumptions (gear: little sells and the price swings; consumables steady; materials steadiest), refined by real sales (friends' at half weight) and closed batches; the batch is capped at what the market takes in 2 days; 300 scenarios per suggestion (units sold, price, unsold at vendor price, active time); success = in profit. Suggestions whose optimistic case still loses are hidden (`/wtd check` says why).
+  - farming: next session = the spot's rate times a spread learned from checked sessions, time behind the spot, price age and gear share; success = at least half the forecast.
+  - tooltips: median, batch profit range, when the money is back, what makes it uncertain.
+
 ## 0.16.1
 - Mob levels are built in (MobLevels.lua, ~9900 hostile and neutral NPCs extracted from QuestieDB's Forever data), so Questie is no longer needed. Levels seen in game still widen and complete them.
 

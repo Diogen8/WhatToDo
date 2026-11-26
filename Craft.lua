@@ -55,6 +55,10 @@ local function evaluate(entry)
 
 	local crafts = math.min(ns.Setting("maxBatch"), supply)
 	if crafts < 1 then return nil, T("на аукціоні замало реагентів для хоча б одного крафту") end
+	-- no bigger than the market takes in the 2 days a batch has
+	local cap = ns.DemandCap and ns.DemandCap(r.product, made)
+	local capped = cap and crafts > cap
+	if capped then crafts = cap end
 	local castSeconds = (r.castMs and r.castMs > 0) and (r.castMs / 1000) or (r.castMs == 0 and 0 or ns.Setting("craftSeconds"))
 	local estimatedPerCraft = castSeconds + ns.Setting("craftOverhead")
 	local measured = ns.CraftSeconds(r.product)
@@ -64,6 +68,27 @@ local function evaluate(entry)
 	-- the same batch without any ledger correction, to show what the correction changed
 	local expectedProfit = expectedRevenue - expectedCost
 	local expectedPerHour = math.max(0, expectedProfit) * crafts * 3600 / (crafts * estimatedPerCraft + ns.Setting("batchOverhead"))
+
+	-- model 1: play the batch out (Model.lua). Works from the scanned price before ledger corrections: the model
+	-- applies real sales itself, so they aren't counted twice.
+	local sim
+	if ns.SimulateCraft then
+		local ahCost = 0
+		for _, p in ipairs(parts) do
+			if p.source == "AH" then ahCost = ahCost + p.unit * p.count end
+		end
+		local vendor = select(11, (C_Item and C_Item.GetItemInfo or GetItemInfo)(r.product)) or 0
+		sim = ns.SimulateCraft({
+			product = r.product, crafts = crafts, made = made, net = net, vendor = vendor,
+			cost = cost * crafts, ahCostShare = cost > 0 and ahCost / cost or 0,
+			activeSeconds = seconds, priceHours = stalestHours, capped = capped,
+		})
+	end
+
+	if sim and sim.p90 <= 0 then
+		return nil, string.format(T("модель: навіть оптимістичний сценарій у мінусі (%s - %s/год, у плюс %d%%)"),
+			ns.Coin(sim.p10), ns.Coin(sim.p90), math.floor(sim.success * 100 + 0.5))
+	end
 
 	local productName = ns.ItemName(r.product)
 	local madeText = (made == 1) and "" or string.format(" x%s", (made % 1 == 0) and tostring(made) or string.format("%.1f", made))
@@ -76,8 +101,21 @@ local function evaluate(entry)
 	local listedProduct = ns.Available(r.product)
 	local tip = {
 		{ T("Рецепт"), table.concat(inputs, " + ") },
-		{ T("Продаж") .. madeText, ns.Coin(gross * made) .. T("  (чисто ") .. ns.Coin(revenue) .. ")" },
 	}
+	if sim then
+		tip[#tip + 1] = { T("Діапазон (8 з 10 випадків)"), ns.Coin(sim.p10) .. " - " .. ns.Coin(sim.p90) .. T("/год") }
+		tip[#tip + 1] = { T("Найімовірніше"), ns.Coin(sim.p50) .. T("/год") }
+		tip[#tip + 1] = { T("У плюс"), string.format("%d%%", math.floor(sim.success * 100 + 0.5)) }
+		tip[#tip + 1] = { T("Прибуток партії"), ns.Coin(sim.profit10) .. " - " .. ns.Coin(sim.profit90) }
+		tip[#tip + 1] = { T("Гроші повернуться"), string.format(T("за ~%s"), ns.AgeText(sim.model.waitHours)) }
+		tip[#tip + 1] = { T("Група"), ns.GroupName(sim.model.group) .. ((sim.model.events or 0) > 0 and string.format(T(", продажів у моделі: %s"), tostring(math.floor(sim.model.events + 0.5))) or "") }
+		for i, d in ipairs(sim.drivers) do tip[#tip + 1] = { i == 1 and T("Невизначеність") or " ", d } end
+		tip[#tip + 1] = { " ", " " }
+	end
+	for _, line in ipairs({
+		{ T("Без моделі (лише ціни)"), ns.Coin(perHour) .. T("/год") },
+		{ T("Продаж") .. madeText, ns.Coin(gross * made) .. T("  (чисто ") .. ns.Coin(revenue) .. ")" },
+	}) do tip[#tip + 1] = line end
 	for _, p in ipairs(parts) do
 		local fText = p.factor and ns.FactorText(p.factor)
 		tip[#tip + 1] = { string.format("  %dx %s", p.count, ns.ItemName(p.id)), string.format("-%s (%s%s)", ns.Coin(p.unit * p.count), p.source == "AH" and T("аукціон") or T("вендор"), fText and (T(", факт ") .. fText) or "") }
@@ -86,7 +124,7 @@ local function evaluate(entry)
 	tip[#tip + 1] = { T("Маржа"), string.format("%.0f%%", cost > 0 and profit / cost * 100 or 0) }
 	tip[#tip + 1] = { " ", " " }
 	tip[#tip + 1] = { T("Партія"), string.format(T("%d крафтів за %.0f хв"), crafts, seconds / 60) }
-	tip[#tip + 1] = { T("Прибуток партії"), ns.Coin(profit * crafts) }
+	tip[#tip + 1] = { sim and T("Прибуток партії, якщо все продасться") or T("Прибуток партії"), ns.Coin(profit * crafts) }
 	if listedProduct then tip[#tip + 1] = { T("Конкуренти на аукціоні"), tostring(listedProduct) .. T(" шт.") } end
 	tip[#tip + 1] = { " ", " " }
 	if sold and sold.units + sold.expired > 0 then
@@ -102,9 +140,7 @@ local function evaluate(entry)
 		tip[#tip + 1] = { T("Партії"), string.format(T("закрито %d, у плюс %d"), batches or 0, inPlus or 0) .. (openBatch and T(", одна відкрита") or "") }
 	end
 	if measured then tip[#tip + 1] = { T("Час на крафт (факт)"), string.format(T("%.1f с"), measured) } end
-	tip[#tip + 1] = { T("Без поправок було б"), ns.Coin(expectedPerHour) .. T("/год") }
-	tip[#tip + 1] = { T("Довіра"), string.format("%d%%: ", math.floor(trust * 100 + 0.5)) .. ns.TrustExplain(priceTrust, evidence,
-		salesCount > 0 and string.format(T("продажів: %s"), salesCount % 1 == 0 and tostring(salesCount) or string.format("%.1f", salesCount)) or T("ще жодного продажу")) }
+	if not sim then tip[#tip + 1] = { T("Без поправок було б"), ns.Coin(expectedPerHour) .. T("/год") } end
 	tip[#tip + 1] = { T("Найстаріша ціна"), string.format(T("%s, %s тому"), ns.ItemName(stalestItem), ns.AgeText(stalestHours))
 		.. (ns.PriceFrom(stalestItem) and string.format(T(" (скан %s)"), ns.PriceFrom(stalestItem)) or "") }
 	tip[#tip + 1] = { entry.section == "learn" and T("Вивчити") or T("Професія"), need }
@@ -114,9 +150,9 @@ local function evaluate(entry)
 	return {
 		kind = entry.section or "craft",
 		title = productName .. madeText,
-		perHour = perHour,
+		perHour = sim and sim.p50 or perHour,
 		expectedPerHour = expectedPerHour,
-		corrected = (sellFactor ~= 1) or (cost ~= expectedCost) or (measured ~= nil),
+		corrected = not sim and ((sellFactor ~= 1) or (cost ~= expectedCost) or (measured ~= nil)),
 		detail = entry.section == "learn"
 			and string.format(T("вивчити %s, %s за крафт, %s"), need, ns.Coin(profit), who)
 			or string.format(T("%s за крафт, %d крафтів/партія, %s"), ns.Coin(profit), crafts, who),
@@ -124,7 +160,9 @@ local function evaluate(entry)
 		profit = profit,
 		crafts = crafts,
 		product = r.product,
-		trust = trust,
+		trust = sim and sim.success or trust,
+		range = sim and { sim.p10, sim.p50, sim.p90 } or nil,
+		rawPerHour = perHour,
 		priceTrust = priceTrust,
 		trustHours = stalestHours,
 		trustItem = stalestItem,
@@ -148,7 +186,7 @@ function ns.Explain(query)
 			local a, reason = evaluate(entry)
 			local head = string.format("%s [%s, %s]", name, entry.section == "learn" and T("якщо вивчити") or T("рекрафт"), who)
 			if a then
-				print(string.format(T("  %s: |cff66ff66пропонується|r - %s/год, %s, %s (%s: %s тому)"), head, ns.Coin(a.perHour), a.detail, (ns.TrustLabel(a.trust)), ns.ItemName(a.trustItem), ns.AgeText(a.trustHours)))
+				print(string.format(T("  %s: |cff66ff66пропонується|r - %s/год, %s, %s (%s: %s тому)"), head, ns.Coin(a.perHour), a.detail, ((a.range and ns.SuccessLabel or ns.TrustLabel)(a.trust)), ns.ItemName(a.trustItem), ns.AgeText(a.trustHours)))
 			else
 				print(string.format(T("  %s: |cffff6666ні|r - %s"), head, reason or "?"))
 			end
