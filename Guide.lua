@@ -26,7 +26,7 @@ local GUIDE = {
 
 ]==] .. H .. "УМОВИ" .. E .. [==[
 
-- У обох однакова версія WhatToDo.
+- У обох сумісна версія WhatToDo: однаковий формат даних для обміну (його показує /wtd version). Різні версії аддона не заважають, поки формат той самий; якщо ні, аддон скаже, кому оновитись.
 - Не в бою.
 - Той самий сервер.
 
@@ -97,7 +97,7 @@ WhatToDo підказує, чим зараз найвигідніше зайня
 
 ]==] .. H .. "ОБМІН ДАНИМИ" .. E .. [==[
 
-Візьміть у таргет друга з вашої групи (поруч, та сама версія WhatToDo) і натисніть "Поділитися з ціллю". Він має підтвердити прийом. Отримані дані зберігаються окремо, а продажі друзів важать удвічі менше за ваші.
+Візьміть у таргет друга з вашої групи (поруч, сумісна версія WhatToDo) і натисніть "Поділитися з ціллю". Він має підтвердити прийом. Отримані дані зберігаються окремо, а продажі друзів важать удвічі менше за ваші.
 
 ]==] .. H .. "ОНОВЛЕННЯ" .. E .. [==[
 
@@ -135,7 +135,7 @@ WhatToDo підказує, чим зараз найвигідніше зайня
 
 ]==] .. H .. "REQUIREMENTS" .. E .. [==[
 
-- Both have the same WhatToDo version.
+- Both have a compatible WhatToDo: the same data format for sharing (shown by /wtd version). Different addon versions are fine as long as the format matches; if not, the addon tells who needs to update.
 - Not in combat.
 - The same realm.
 
@@ -206,7 +206,7 @@ When you take auction mail, WhatToDo records sales, returns and purchases, plus 
 
 ]==] .. H .. "SHARING DATA" .. E .. [==[
 
-Target a friend in your group (nearby, same WhatToDo version) and click "Share with target". They must accept. Received data is kept separately, and friends' sales weigh half as much as yours.
+Target a friend in your group (nearby, compatible WhatToDo version) and click "Share with target". They must accept. Received data is kept separately, and friends' sales weigh half as much as yours.
 
 ]==] .. H .. "UPDATES" .. E .. [==[
 

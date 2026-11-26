@@ -9,8 +9,8 @@
 -- adds friends' spots.
 --
 -- Protocol (hidden addon whispers, prefix "WhatToDoShr"):
---   sender -> PING            receiver -> PONG:<version>
---   sender -> OFFER:<version>:<chunks>:<bytes>:<summary>
+--   sender -> PING            receiver -> PONG:<addon version>:<data format>
+--   sender -> OFFER:<data format>:<chunks>:<bytes>:<summary>
 --   receiver (popup) -> ACCEPT | DECLINE
 --   sender -> D:<i>:<chunk> ... END:<checksum>
 --   receiver -> DONE | FAIL:<reason>
@@ -18,6 +18,14 @@
 -- limits before anything is stored.
 local _, ns = ...
 local T = function(s) return ns.T(s) end
+
+-- The DATA FORMAT of a share, not the addon version: two copies can share whenever their formats are equal, whatever
+-- their addon versions (cosmetic changes, translations, UI, new suggestions don't matter).
+-- Bump it only when what is sent changes in a way an older copy would misread: a field renamed or removed, a unit or
+-- meaning changed (copper vs gold, net vs gross, ...), a new required section. Adding an optional field needs no bump:
+-- sanitize() keeps only the fields it knows, so unknown ones are ignored.
+local DATA_FORMAT = 1
+ns.SHARE_FORMAT = DATA_FORMAT
 
 local PREFIX = "WhatToDoShr"
 local CHUNK = 230              -- payload characters per message (the limit is 255 with the header)
@@ -148,7 +156,7 @@ end
 
 local function buildPayload()
 	local l = (ns.Ledger and ns.Ledger()) or { sales = {}, buys = {}, crafts = {} }
-	local p = { v = 1, realm = GetRealmName(), t = time(), sales = {}, buys = {}, crafts = {}, prices = {}, spots = {} }
+	local p = { v = DATA_FORMAT, realm = GetRealmName(), t = time(), sales = {}, buys = {}, crafts = {}, prices = {}, spots = {} }
 	for name, r in pairs(l.sales or {}) do p.sales[name] = pick(r, SALE_FIELDS) end
 	for name, r in pairs(l.buys or {}) do p.buys[name] = pick(r, BUY_FIELDS) end
 	for id, r in pairs(l.crafts or {}) do p.crafts[id] = pick(r, CRAFT_FIELDS) end
@@ -216,7 +224,7 @@ end
 
 -- A received payload, checked field by field; nil plus a reason when it doesn't hold up.
 local function sanitize(p)
-	if type(p) ~= "table" or p.v ~= 1 then return nil, "format" end
+	if type(p) ~= "table" or p.v ~= DATA_FORMAT then return nil, "format" end
 	if p.realm ~= GetRealmName() then return nil, "realm" end
 	local now = time()
 	local out = { received = now, sales = {}, buys = {}, crafts = {}, prices = {}, spots = {} }
@@ -349,7 +357,7 @@ function ns.ShareWithTarget()
 	if not nearby("target") then return ns.Out(T("ціль занадто далеко - підійдіть ближче.")) end
 	local target = GetUnitName and GetUnitName("target", true) or UnitName("target")
 	outgoing = { target = target, phase = "ping", failures = 0 }
-	status(string.format(T("перевіряю версію в %s..."), short(target)))
+	status(string.format(T("перевіряю сумісність з %s..."), short(target)))
 	sendTo(target, "PING")
 	local o = outgoing
 	C_Timer.After(PING_TIMEOUT, function()
@@ -359,11 +367,19 @@ function ns.ShareWithTarget()
 	end)
 end
 
-local function onPong(sender, version)
+local function onPong(sender, reply)
 	local o = outgoing
 	if not o or o.phase ~= "ping" or short(sender) ~= short(o.target) then return end
-	if version ~= ns.VERSION then
-		return finishOutgoing(string.format(T("у %s версія %s, у вас %s - потрібна однакова версія."), short(sender), version, ns.VERSION))
+	local version, format = reply:match("^([^:]+):(%d+)$")
+	if not format then
+		-- 0.12-0.13: they answer with just the addon version and only accept exactly equal versions
+		return finishOutgoing(string.format(T("у %s стара версія WhatToDo (%s) - для обміну обом потрібна 0.14.0 або новіша."), short(sender), reply))
+	end
+	format = tonumber(format)
+	if format ~= DATA_FORMAT then
+		local who = format < DATA_FORMAT and short(sender) or T("вам")
+		return finishOutgoing(string.format(T("формат даних не збігається (у %s WhatToDo %s, у вас %s) - %s треба оновити WhatToDo."),
+			short(sender), version, ns.VERSION, who))
 	end
 	local payload, summary = buildPayload()
 	local data = serialize(payload)
@@ -372,7 +388,7 @@ local function onPong(sender, version)
 	for i = 1, #data, CHUNK do o.chunks[#o.chunks + 1] = data:sub(i, i + CHUNK - 1) end
 	o.sum, o.index = checksum(data), 1
 	o.phase = "offer"
-	sendTo(o.target, string.format("OFFER:%s:%d:%d:%s", ns.VERSION, #o.chunks, #data, summary))
+	sendTo(o.target, string.format("OFFER:%d:%d:%d:%s", DATA_FORMAT, #o.chunks, #data, summary))
 	status(string.format(T("чекаю, поки %s прийме дані..."), short(o.target)))
 	C_Timer.After(OFFER_TIMEOUT, function()
 		if outgoing == o and o.phase == "offer" then finishOutgoing(string.format(T("%s не відповів на пропозицію."), short(o.target))) end
@@ -425,9 +441,9 @@ StaticPopupDialogs["WHATTODO_SHARE_OFFER"] = {
 	preferredIndex = 3,
 }
 
-local function onOffer(sender, version, n, bytes, summary)
+local function onOffer(sender, format, n, bytes, summary)
 	if incoming then return sendTo(sender, "DECLINE") end
-	if version ~= ns.VERSION then return sendTo(sender, "FAIL:version") end
+	if tonumber(format) ~= DATA_FORMAT then return sendTo(sender, "FAIL:version") end
 	if not inGroupWith(short(sender)) then return sendTo(sender, "FAIL:group") end
 	n, bytes = tonumber(n), tonumber(bytes)
 	if not n or not bytes or bytes > MAX_BYTES or n > math.ceil(MAX_BYTES / CHUNK) then return sendTo(sender, "FAIL:size") end
@@ -475,7 +491,7 @@ end
 ---------------------------------------------------------------------------
 
 local FAIL_TEXT = {
-	version = "у одержувача інша версія WhatToDo.",
+	version = "у одержувача несумісний формат даних WhatToDo.",
 	group = "одержувач не бачить вас у групі.",
 	size = "одержувач відхилив: забагато даних.",
 	missing = "дані дійшли не повністю.",
@@ -486,11 +502,11 @@ local FAIL_TEXT = {
 
 local function onMessage(text, sender)
 	if text == "PING" then
-		sendTo(sender, "PONG:" .. ns.VERSION)
+		sendTo(sender, "PONG:" .. ns.VERSION .. ":" .. DATA_FORMAT)
 		return
 	end
-	local version = text:match("^PONG:(.+)$")
-	if version then return onPong(sender, version) end
+	local reply = text:match("^PONG:(.+)$")
+	if reply then return onPong(sender, reply) end
 	local v, n, bytes, summary = text:match("^OFFER:([^:]+):(%d+):(%d+):(.*)$")
 	if v then return onOffer(sender, v, n, bytes, summary) end
 	local index, chunk = text:match("^D:(%d+):(.*)$")
@@ -590,7 +606,7 @@ local function registerOptions()
 	lang:SetPoint("TOPLEFT", guide, "BOTTOMLEFT", 0, -8)
 	local function texts()
 		title:SetText("WhatToDo " .. (ns.VERSION or ""))
-		note:SetText(T("Поділитися даними: візьміть у таргет гравця з вашої групи, який стоїть поруч і має ту саму версію WhatToDo. Він має підтвердити прийом."))
+		note:SetText(T("Поділитися даними: візьміть у таргет гравця з вашої групи, який стоїть поруч і має сумісну версію WhatToDo. Він має підтвердити прийом."))
 		share:SetText(T("Поділитися даними з ціллю"))
 		open:SetText(T("Відкрити вікно WhatToDo"))
 		guide:SetText(T("Інструкція"))
