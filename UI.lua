@@ -18,6 +18,8 @@ local function statusText(count)
 	parts[#parts + 1] = string.format("рецептів: %d, персонажів: %d", recipes, chars)
 	parts[#parts + 1] = string.format("варіантів: %d", count)
 	parts[#parts + 1] = "виручка 7 дн.: " .. ns.Coin(ns.Income(7))
+	local notice = ns.UpdateNotice and ns.UpdateNotice()
+	parts[#parts + 1] = notice and ("|cff66ff66" .. notice .. "|r") or ("v" .. (ns.VERSION or "?"))
 	return table.concat(parts, "   ")
 end
 
@@ -346,6 +348,8 @@ SlashCmdList.WHATTODO = function(msg)
 		local seen = 0
 		for _ in pairs(WhatToDoDB.priceSeen or {}) do seen = seen + 1 end
 		print(string.format("  точний час цін: перехоплення %s, записано предметів: %d", has(ns.PriceHookActive()), seen))
+	elseif cmd == "version" then
+		ns.Out("версія " .. ns.VERSION .. (ns.UpdateNotice and ns.UpdateNotice() and (", " .. ns.UpdateNotice()) or ", новішої у друзів поки не бачили"))
 	elseif cmd == "stats" then
 		ns.LedgerReport()
 	elseif cmd == "ledger" and rest == "reset" then
@@ -357,7 +361,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій.")
 	else
-		ns.Out("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа")
+		ns.Out("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа")
 	end
 end
 

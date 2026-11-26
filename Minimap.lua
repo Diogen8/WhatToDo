@@ -33,7 +33,7 @@ end
 
 local function showTooltip(self)
 	GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-	GameTooltip:AddLine("WhatToDo")
+	GameTooltip:AddLine("WhatToDo " .. (ns.VERSION or ""))
 	local any = false
 	for _, s in ipairs(SECTION_NAMES) do
 		local best = ns.Rank(s[1])[1]
@@ -45,6 +45,8 @@ local function showTooltip(self)
 	if not any then GameTooltip:AddLine("Поки нічого порадити.", 0.7, 0.7, 0.7) end
 	local income = ns.Income and ns.Income(7) or 0
 	if income > 0 then GameTooltip:AddDoubleLine("Виручка з аукціону, 7 дн.", ns.Coin(income), 0.7, 0.7, 0.7, 1, 1, 1) end
+	local notice = ns.UpdateNotice and ns.UpdateNotice()
+	if notice then GameTooltip:AddLine(notice, 0.4, 1, 0.4, true) end
 	GameTooltip:AddLine(" ")
 	GameTooltip:AddLine("Лівий клік - вікно, правий - топ у чат, тягнути - перемістити", 0.6, 0.6, 0.6, true)
 	GameTooltip:Show()
