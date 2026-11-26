@@ -33,9 +33,12 @@ local function rowTooltip(row)
 	if a.kind == "craft" then
 		GameTooltip:AddLine(" ")
 		GameTooltip:AddLine("Час на продаж не враховано. Ціни - мінімальні зі сканування.", 0.6, 0.6, 0.6, true)
-	elseif a.confidence and a.confidence < 1 then
+	elseif a.kind ~= "learn" and a.confidence and a.confidence < 1 then
 		GameTooltip:AddLine(" ")
 		GameTooltip:AddLine("Мало даних - цифра може сильно гуляти.", 1, 0.5, 0.3, true)
+	end
+	if a.product then
+		GameTooltip:AddLine(a.kind == "learn" and "Клік - що потрібно для рецепта" or "Клік - відкрити рецепт у професії", 0.4, 0.8, 1, true)
 	end
 	GameTooltip:Show()
 end
@@ -43,8 +46,8 @@ end
 local HEADER_HEIGHT = 26
 -- Each section's colour: the header text, its rule and a faint wash behind its rows.
 local SECTION = {
-	craft = { title = "РЕКРАФТ, АФК", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
-	learn = { title = "РЕКРАФТ, ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
+	craft = { title = "РЕКРАФТ (АФК)", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
+	learn = { title = "РЕКРАФТ: ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
 	farm = { title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
 	mining = { title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
 	herbalism = { title = "ЗБІР ТРАВ", note = "трави, за годину на місці", color = { 0.45, 0.85, 0.45 }, hideEmpty = true },
@@ -90,6 +93,9 @@ local function makeRow(parent)
 	r.detail:SetWordWrap(false)
 	r.detail:SetTextColor(0.75, 0.75, 0.75)
 	r:SetScript("OnEnter", rowTooltip)
+	r:SetScript("OnClick", function(self)
+		if self.activity and self.activity.product then ns.OpenRecipe(self.activity) end
+	end)
 	r:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	return r
 end

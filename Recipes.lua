@@ -39,7 +39,7 @@ local function castMsOf(spellID)
 end
 
 -- One recipe into the character's list for its profession. Returns true when it's new.
-local function store(profession, name, product, made, reagents, castMs, onCooldown)
+local function store(profession, name, product, made, reagents, castMs, onCooldown, recipeID)
 	local char = WhatToDoDB.recipes[ns.CharKey()] or {}
 	WhatToDoDB.recipes[ns.CharKey()] = char
 	local known = char[profession] or {}
@@ -47,6 +47,7 @@ local function store(profession, name, product, made, reagents, castMs, onCooldo
 	local old = known[name]
 	known[name] = {
 		product = product,
+		recipeID = recipeID or (old and old.recipeID), -- C_TradeSkillUI recipe (spell) ID, to open it from a row
 		made = made,
 		reagents = reagents,
 		castMs = castMs,
@@ -83,7 +84,7 @@ local function scanLegacy()
 				local recipeLink = GetTradeSkillRecipeLink and GetTradeSkillRecipeLink(i)
 				if recipeLink then spellID = tonumber(recipeLink:match("enchant:(%d+)") or recipeLink:match("spell:(%d+)")) end
 				local cooldown = GetTradeSkillCooldown and GetTradeSkillCooldown(i)
-				if store(profession, name, product, (minMade + (maxMade or minMade)) / 2, reagents, castMsOf(spellID), cooldown and cooldown > 0) then
+				if store(profession, name, product, (minMade + (maxMade or minMade)) / 2, reagents, castMsOf(spellID), cooldown and cooldown > 0, spellID) then
 					added = added + 1
 				end
 			end
@@ -141,7 +142,7 @@ local function scanModern()
 					local maxMade = schematic.quantityMax or minMade
 					local cooldown = T.GetRecipeCooldown and call(T.GetRecipeCooldown, recipeID)
 					local name = schematic.name or (type(info) == "table" and info.name) or ("recipe " .. recipeID)
-					if store(profession, name, product, (minMade + maxMade) / 2, reagents, castMsOf(recipeID), type(cooldown) == "number" and cooldown > 0) then
+					if store(profession, name, product, (minMade + maxMade) / 2, reagents, castMsOf(recipeID), type(cooldown) == "number" and cooldown > 0, recipeID) then
 						added = added + 1
 					end
 				end
@@ -372,4 +373,65 @@ function ns.RecipeCount()
 	end
 	for _ in pairs((WhatToDoDB and WhatToDoDB.chars) or {}) do chars = chars + 1 end
 	return count, chars
+end
+
+---------------------------------------------------------------------------
+-- Opening a recipe in the profession window (a click on a recraft row)
+---------------------------------------------------------------------------
+
+-- The current character's recorded recipe that makes `product`, or nil.
+local function myRecipe(product)
+	for _, list in pairs((WhatToDoDB and WhatToDoDB.recipes and WhatToDoDB.recipes[ns.CharKey()]) or {}) do
+		if type(list) == "table" then
+			for _, r in pairs(list) do
+				if r.product == product then return r end
+			end
+		end
+	end
+end
+
+-- The old API, with the trade skill window already open: select the line that makes `product`.
+local function selectLegacy(product)
+	if not (GetNumTradeSkills and GetTradeSkillItemLink and SelectTradeSkill) then return false end
+	if not (TradeSkillFrame and TradeSkillFrame:IsShown()) then return false end
+	for i = 1, GetNumTradeSkills() or 0 do
+		if idFromLink(GetTradeSkillItemLink(i)) == product then
+			SelectTradeSkill(i)
+			if TradeSkillFrame_SetSelection then TradeSkillFrame_SetSelection(i) end
+			if TradeSkillFrame_Update then TradeSkillFrame_Update() end
+			return true
+		end
+	end
+	return false
+end
+
+-- Opens the profession window at the recipe for an activity's product. Says in chat why when it can't.
+function ns.OpenRecipe(activity)
+	local product = activity and activity.product
+	if not product then return end
+	local name = ns.ItemName(product)
+	if InCombatLockdown and InCombatLockdown() then
+		return ns.Out("у бою вікно професії не відкрити.")
+	end
+	if activity.kind == "learn" then
+		return ns.Out(string.format("%s: рецепт ще треба вивчити (%s).", name, activity.need or "у тренера"))
+	end
+	if activity.conversion then
+		return ns.Out(string.format("%s: це об'єднання есенцій - клацніть правою кнопкою по есенції в сумці.", name))
+	end
+	local r = myRecipe(product)
+	local T = C_TradeSkillUI
+	if r and r.recipeID and T and T.OpenRecipe then
+		local ok = pcall(T.OpenRecipe, r.recipeID)
+		if ok then return end
+	end
+	if selectLegacy(product) then return end
+	if r then
+		return ns.Out(string.format("%s: відкрийте вікно професії - рецепт виділиться, коли вікно буде відкрите.", name))
+	end
+	local who = activity.who or ""
+	if who ~= "" and not who:find(UnitName("player") or "", 1, true) then
+		return ns.Out(string.format("%s крафтить %s, не цей персонаж.", name, who))
+	end
+	ns.Out(string.format("%s: рецепт ще не записаний - відкрийте один раз вікно професії.", name))
 end

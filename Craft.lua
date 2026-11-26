@@ -99,6 +99,10 @@ local function evaluate(entry)
 		tooltip = tip,
 		profit = profit,
 		crafts = crafts,
+		product = r.product,
+		who = who,
+		need = need,
+		conversion = r.profession == "Essences",
 	}
 end
 
