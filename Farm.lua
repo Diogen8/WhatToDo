@@ -118,11 +118,13 @@ function ns.FarmActivities()
 	local out = {}
 	for _, s in pairs(spots) do
 		if s.seconds >= minSeconds then
-			local itemValue, lines = 0, {}
+			local itemValue, expectedItems, lines = 0, 0, {}
 			for itemID, count in pairs(s.items) do
-				local v = valueOf(itemID, yield, cache) * count
-				itemValue = itemValue + v
-				lines[#lines + 1] = { itemID = itemID, count = count, value = v }
+				local base = valueOf(itemID, yield, cache) * count
+				local factor = ns.SellFactor(itemID)
+				local v = base * factor
+				itemValue, expectedItems = itemValue + v, expectedItems + base
+				lines[#lines + 1] = { itemID = itemID, count = count, value = v, factor = factor }
 			end
 			local value = s.money + itemValue
 			if value > 0 then
@@ -148,7 +150,8 @@ function ns.FarmActivities()
 				tip[#tip + 1] = { "Найцінніше:", "" }
 				for i = 1, math.min(6, #lines) do
 					local l = lines[i]
-					tip[#tip + 1] = { string.format("  %s x%d", ns.ItemName(l.itemID), l.count), ns.Coin(l.value * 3600 / s.seconds) .. "/год" }
+					local fText = ns.FactorText(l.factor)
+					tip[#tip + 1] = { string.format("  %s x%d", ns.ItemName(l.itemID), l.count), ns.Coin(l.value * 3600 / s.seconds) .. "/год" .. (fText and (" (факт " .. fText .. ")") or "") }
 				end
 				if #mobs > 0 then
 					tip[#tip + 1] = { " ", " " }
@@ -159,6 +162,9 @@ function ns.FarmActivities()
 				end
 				tip[#tip + 1] = { " ", " " }
 				tip[#tip + 1] = { "Персонажі", table.concat(chars, ", ") }
+				if math.abs(itemValue - expectedItems) >= 1 then
+					tip[#tip + 1] = { "Без поправок було б", ns.Coin((s.money + expectedItems) * 3600 / s.seconds) .. "/год" }
+				end
 
 				local detail = string.format("%.1f год даних", hours)
 				if s.kills > 0 then detail = detail .. string.format(" · %.0f вбивств/год", s.kills / hours) end
@@ -169,6 +175,8 @@ function ns.FarmActivities()
 					kind = "farm",
 					title = title,
 					perHour = value * 3600 / s.seconds,
+					expectedPerHour = (s.money + expectedItems) * 3600 / s.seconds,
+					corrected = math.abs(itemValue - expectedItems) >= 1,
 					detail = detail,
 					tooltip = tip,
 					confidence = math.min(1, s.seconds / 3600), -- an hour of data counts as solid

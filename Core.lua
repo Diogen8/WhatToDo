@@ -19,6 +19,7 @@ ns.DEFAULTS = {
 	minProfit = 100,       -- copper per craft below which a recipe isn't worth listing
 	ahCut = 0.05,
 	results = 15,          -- rows per section
+	corrections = 1,       -- 1: correct estimates by the ledger (real sales, purchases, craft times)
 	essences = 1,          -- 1: include combining/splitting enchanting essences (no profession needed)
 }
 
@@ -61,6 +62,8 @@ function ns.ItemName(itemID)
 		ns.pendingNames = true
 		return "item:" .. itemID
 	end
+	ns.nameToID = ns.nameToID or {}
+	ns.nameToID[name] = itemID
 	return name
 end
 

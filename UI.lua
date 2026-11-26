@@ -17,6 +17,7 @@ local function statusText(count)
 	local recipes, chars = ns.RecipeCount()
 	parts[#parts + 1] = string.format("рецептів: %d · персонажів: %d", recipes, chars)
 	parts[#parts + 1] = string.format("варіантів: %d", count)
+	parts[#parts + 1] = "виручка 7 дн.: " .. ns.Coin(ns.Income(7))
 	return table.concat(parts, "   ")
 end
 
@@ -117,7 +118,11 @@ local function setActivity(r, a, rank)
 	r.header:Hide(); r.headerNote:Hide()
 	r.rank:SetText(rank .. ".")
 	r.title:SetText(a.title)
-	r.detail:SetText(a.detail or "")
+	local detail = a.detail or ""
+	if a.corrected and a.expectedPerHour and a.expectedPerHour > 0 then
+		detail = string.format("|cffffcc66факт %.0f%% від прогнозу|r · ", a.perHour / a.expectedPerHour * 100) .. detail
+	end
+	r.detail:SetText(detail)
 	r.value:SetText(coinText(a.perHour) .. "/год")
 	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show()
 end
@@ -253,6 +258,7 @@ local SETTING_HELP = {
 	maxPriceAgeDays = "макс. вік цін аукціону, днів",
 	minProfit = "мінімальний прибуток за крафт, мідь",
 	results = "скільки рядків показувати в кожній секції",
+	corrections = "1 — коригувати прогноз за фактичними продажами/купівлями/часом крафту, 0 — ні",
 	essences = "1 — рахувати об'єднання есенцій (без професії), 0 — ні",
 }
 
@@ -291,12 +297,18 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.settings = {}
 		ns.Out("налаштування скинуто.")
 		ns.Refresh()
+	elseif cmd == "stats" then
+		ns.LedgerReport()
+	elseif cmd == "ledger" and rest == "reset" then
+		WhatToDoDB.ledger = nil
+		ns.Out("журнал фактичних результатів очищено.")
+		ns.Refresh()
 	elseif cmd == "forget" then
 		WhatToDoDB.recipes[ns.CharKey()] = nil
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій.")
 	else
-		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd reset · /wtd forget — забути рецепти персонажа")
+		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd stats — факт продажів · /wtd reset · /wtd ledger reset · /wtd forget — забути рецепти персонажа")
 	end
 end
 
