@@ -27,6 +27,40 @@ local function yieldAddon()
 end
 
 function ns.HasYield() return yieldDB() ~= nil end
+
+-- Yield records only while one of its views is open unless "Record when Yield is closed" (alwaysRecord) is on.
+-- true/false, or nil when that can't be read (another Yield version).
+function ns.YieldRecordsClosed()
+	local y = yieldAddon()
+	if not (y and y.Setting and y.db and y.db.settings) then return nil end
+	local ok, on = pcall(y.Setting, y, "alwaysRecord")
+	if not ok or on == nil then return nil end
+	return on and true or false
+end
+
+-- /wtd yield: turn that setting on.
+function ns.YieldEnableRecording()
+	local y = yieldAddon()
+	if not (y and y.SetSetting) or ns.YieldRecordsClosed() == nil then
+		ns.Out(T("Не вдалося змінити налаштування Yield - увімкніть вручну: Yield > Settings > Tracking > Record when Yield is closed."))
+		return
+	end
+	local ok = pcall(y.SetSetting, y, "alwaysRecord", true)
+	ns.Out(ok and T("Yield тепер записує фарм і з закритим вікном.") or T("Не вдалося змінити налаштування Yield - увімкніть вручну: Yield > Settings > Tracking > Record when Yield is closed."))
+	if ns.RefreshStatus then ns.RefreshStatus() end
+end
+
+-- Once per login: say so when Yield won't record with its window closed.
+local yieldCheck = CreateFrame("Frame")
+yieldCheck:RegisterEvent("PLAYER_ENTERING_WORLD")
+yieldCheck:SetScript("OnEvent", function(self)
+	self:UnregisterAllEvents()
+	C_Timer.After(8, function()
+		if ns.YieldRecordsClosed() == false then
+			ns.Out(T("|cffffcc00Yield записує фарм лише коли його вікно відкрите.|r Увімкніть Yield > Settings > Tracking > \"Record when Yield is closed\" або наберіть |cffffd100/wtd yield|r - увімкну сам."))
+		end
+	end)
+end)
 function ns.YieldData() return yieldDB() end
 
 -- Copper one looted unit is worth now.

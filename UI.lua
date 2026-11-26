@@ -18,7 +18,11 @@ local function statusText(count)
 	if ns.shareStatus then return "|cff66ccff" .. ns.shareStatus .. "|r" end
 	-- a dependency's name: green when it is loaded, red when not
 	parts[#parts + 1] = (ns.HasAuctionator() and "|cff66ff66" or "|cffff6666") .. "Auctionator|r"
-	parts[#parts + 1] = (ns.HasYield() and "|cff66ff66" or "|cffff6666") .. "Yield|r"
+	if ns.HasYield() and ns.YieldRecordsClosed() == false then
+		parts[#parts + 1] = "|cffffcc00Yield" .. T(" (лише з відкритим вікном, /wtd yield)") .. "|r"
+	else
+		parts[#parts + 1] = (ns.HasYield() and "|cff66ff66" or "|cffff6666") .. "Yield|r"
+	end
 	local recipes, chars = ns.RecipeCount()
 	parts[#parts + 1] = string.format(T("рецептів: %d, персонажів: %d"), recipes, chars)
 	parts[#parts + 1] = string.format(T("варіантів: %d"), count)
@@ -663,6 +667,8 @@ SlashCmdList.WHATTODO = function(msg)
 		else
 			ns.Out("/wtd lang en | /wtd lang uk")
 		end
+	elseif cmd == "yield" then
+		ns.YieldEnableRecording()
 	elseif cmd == "results" then
 		ns.ResultsReport()
 	elseif cmd == "guide" then
@@ -690,7 +696,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out(T("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій."))
 	else
-		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd results - результати партій і сесій, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd guide - інструкція, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
+		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd results - результати партій і сесій, /wtd yield - щоб Yield писав і з закритим вікном, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd guide - інструкція, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
 	end
 end
 

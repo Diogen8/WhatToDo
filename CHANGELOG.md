@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.21.1
+- Yield records only while its window is open unless "Record when Yield is closed" is on. WhatToDo now checks it: a reminder at login, Yield shown in yellow in the status line and the guide, and `/wtd yield` turns it on. README and the guide say so too.
+
 ## 0.21.0
 - Right-click a recraft row: an Auctionator shopping list for the batch, with what's still to buy and the most worth paying for each (the price now plus a quarter, never more than a craft's whole profit).
 - Owned materials count: every character's bags (and bank, once opened) are remembered; a recraft uses them first at what they'd fetch, buys only the rest, and the tooltip says who has them.

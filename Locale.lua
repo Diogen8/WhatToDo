@@ -337,6 +337,10 @@ local EN = {
 	["%d%% / %d%% (з %d сесій)"] = "%d%% / %d%% (from %d sessions)",
 	["  модель 2"] = "  model 2",
 	["з %d закритих партій (зараз %d)"] = "from %d closed batches (now %d)",
+	["Не вдалося змінити налаштування Yield - увімкніть вручну: Yield > Settings > Tracking > Record when Yield is closed."] = "Couldn't change Yield's setting - turn it on yourself: Yield > Settings > Tracking > Record when Yield is closed.",
+	["Yield тепер записує фарм і з закритим вікном."] = "Yield now records farming with its window closed too.",
+	["|cffffcc00Yield записує фарм лише коли його вікно відкрите.|r Увімкніть Yield > Settings > Tracking > \"Record when Yield is closed\" або наберіть |cffffd100/wtd yield|r - увімкну сам."] = "|cffffcc00Yield records farming only while its window is open.|r Turn on Yield > Settings > Tracking > \"Record when Yield is closed\" or type |cffffd100/wtd yield|r and I'll do it.",
+	[" (лише з відкритим вікном, /wtd yield)"] = " (only with its window open, /wtd yield)",
 }
 
 function ns.Lang()

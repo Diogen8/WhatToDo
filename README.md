@@ -1,4 +1,4 @@
-# WhatToDo 0.21.0
+# WhatToDo 0.21.1
 
 **[Українська](#українська) | [English](#english) | [For AI agents](#for-ai-agents-install-and-update)**
 
@@ -21,6 +21,8 @@
 |---|---|---|
 | [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | ціни аукціону | ні, але без нього рекрафт не працює |
 | [Yield](https://www.curseforge.com/wow/addons/yield) | сесії фарму | ні, але без нього немає порад по фарму |
+
+> **Важливо про Yield:** за замовчуванням він записує фарм лише поки його вікно відкрите. Після встановлення увімкніть у Yield: **Settings → Tracking → Record when Yield is closed** (або наберіть у грі `/wtd yield` — WhatToDo увімкне сам). WhatToDo нагадає при вході в гру, якщо галка вимкнена.
 
 ### Встановлення та оновлення
 
@@ -55,6 +57,8 @@ Every suggestion has a **trust level**: how fresh the auction prices are and, ab
 |---|---|---|
 | [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | auction prices | no, but recraft needs it |
 | [Yield](https://www.curseforge.com/wow/addons/yield) | farming sessions | no, but farming suggestions need it |
+
+> **Important about Yield:** by default it records farming only while its window is open. After installing, turn on in Yield: **Settings → Tracking → Record when Yield is closed** (or type `/wtd yield` in game and WhatToDo turns it on). WhatToDo reminds you at login while it's off.
 
 ### Install and update
 
@@ -105,6 +109,7 @@ Follow these steps exactly. The same procedure installs and updates. Ask the use
 - to fully restart the game if it is running (a new or updated addon is loaded at game start; `/reload` is enough only when no files were added or removed, so restarting is the safe advice);
 - in game: `/wtd` opens the window, `/wtd guide` the guide;
 - that the optional dependencies **Auctionator** and **Yield** come from CurseForge, if they are not in `<AddOns>` yet (folders `Auctionator`, `Yield`).
+- if Yield is used: by default it records only while its window is open, so in Yield turn on **Settings → Tracking → Record when Yield is closed**, or type `/wtd yield` in game.
 
 ---
 

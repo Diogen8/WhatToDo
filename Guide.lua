@@ -12,6 +12,7 @@ local GUIDE = {
 		title = "WhatToDo - інструкція",
 		ok = "встановлено",
 		missing = "не знайдено",
+		yieldClosed = "встановлено, але пише лише з відкритим вікном",
 		close = "Зрозуміло",
 		open = "Відкрити WhatToDo",
 		switch = "English",
@@ -66,6 +67,8 @@ WhatToDo підказує, чим зараз найвигідніше зайня
   Ціни аукціону. Без нього рекрафт не працює, а лут оцінюється лише за цінами вендора.
 - Yield: {YIELD}
   Сесії фарму. Звідти WhatToDo бере місця, час і лут для фарму та збору.
+  Важливо: за замовчуванням Yield записує лише поки його вікно відкрите. Увімкніть
+  Yield > Settings > Tracking > "Record when Yield is closed" (або /wtd yield).
 Обидва необов'язкові, але без них відповідні секції будуть порожні.
 
 ]==] .. H .. "ПЕРШІ КРОКИ" .. E .. [==[
@@ -123,6 +126,7 @@ WhatToDo підказує, чим зараз найвигідніше зайня
 		title = "WhatToDo - guide",
 		ok = "installed",
 		missing = "not found",
+		yieldClosed = "installed, but records only with its window open",
 		close = "Got it",
 		open = "Open WhatToDo",
 		switch = "Українська",
@@ -177,6 +181,8 @@ WhatToDo suggests what is most profitable to do right now and ranks the options 
   Auction prices. Without it recraft does not work and loot is valued at vendor prices only.
 - Yield: {YIELD}
   Farming sessions. WhatToDo takes spots, time and loot for farming and gathering from it.
+  Important: by default Yield records only while its window is open. Turn on
+  Yield > Settings > Tracking > "Record when Yield is closed" (or type /wtd yield).
 Both are optional, but without them the matching sections stay empty.
 
 ]==] .. H .. "FIRST STEPS" .. E .. [==[
@@ -249,7 +255,7 @@ local function fill()
 	frame.titleText:SetText(topic == "share" and t.shareTitle or t.title)
 	local body = (topic == "share" and t.share or t.body)
 		:gsub("{AUCTIONATOR}", status(ns.HasAuctionator(), t))
-		:gsub("{YIELD}", status(ns.HasYield(), t))
+		:gsub("{YIELD}", (ns.HasYield() and ns.YieldRecordsClosed() == false) and ("|cffffcc00" .. t.yieldClosed .. "|r") or status(ns.HasYield(), t))
 	frame.text:SetText(body)
 	frame.content:SetHeight((frame.text:GetStringHeight() or 400) + 20)
 	frame.closeButton:SetText(t.close)
