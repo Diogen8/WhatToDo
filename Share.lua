@@ -411,7 +411,8 @@ local function respond(answer)
 	end
 end
 
-StaticPopupDialogs = StaticPopupDialogs or {}
+-- Only our own key is added: assigning the StaticPopupDialogs global itself (even to the same table) taints it,
+-- and the game then blocks protected actions in every Blizzard popup, blaming WhatToDo.
 StaticPopupDialogs["WHATTODO_SHARE_OFFER"] = {
 	text = "%s",
 	button1 = "OK",

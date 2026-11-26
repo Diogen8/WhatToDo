@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.13.2
+- Fix: "WhatToDo has been blocked from an action only available to the Blizzard UI". The StaticPopupDialogs global was reassigned, which tainted every Blizzard popup.
+
 ## 0.13.1
 - Repository: `release/WhatToDo.zip` and `release/VERSION`, README with install/update steps for AI agents.
 - "?" next to the share button: tooltip and a sharing guide page.
