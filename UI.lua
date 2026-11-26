@@ -369,9 +369,11 @@ local function tabButton(parent, width, height)
 	b:SetNormalFontObject("GameFontNormalSmall")
 	b:SetHighlightFontObject("GameFontHighlightSmall")
 	b:SetText(" ")
+	-- the icon fills the button's height inside its border, square, with the same margin above and below
 	local icon = b:CreateTexture(nil, "OVERLAY")
-	icon:SetSize(12, 12)
-	icon:SetPoint("LEFT", 6, -1)
+	icon:SetPoint("TOPLEFT", 5, -4)
+	icon:SetPoint("BOTTOMLEFT", 5, 4)
+	icon:SetWidth(height - 8)
 	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 	b.icon = icon
 	local text = b:GetFontString()

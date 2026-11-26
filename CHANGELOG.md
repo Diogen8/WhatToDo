@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.1
+- Tab icons fill the button's height, centred, with equal margins.
+
 ## 0.19.0
 - New tabs: Overview, By zone, Recraft, Mobs, Resources.
   - Recraft has a second row of tabs, one per profession (essence conversions under Enchanting, smelting as Smelting).
