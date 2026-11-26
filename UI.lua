@@ -1,9 +1,8 @@
 -- The window (/wtd) and chat commands.
 local _, ns = ...
 
-local ROW_HEIGHT, ROWS_MAX = 38, 60
+local ROW_HEIGHT, ROWS_MAX = 38, 40
 local frame, rows, filter = nil, {}, "all"
-local KIND_TAG = { farm = "|cff66cc66ФАРМ|r", craft = "|cff66aaffКРАФТ|r" }
 
 local function coinText(copper)
 	copper = math.floor(copper / 100 + 0.5) * 100 -- to the silver
@@ -16,7 +15,7 @@ local function statusText(count)
 	parts[#parts + 1] = ns.HasAuctionator() and "Auctionator: є" or "|cffff6666Auctionator: немає|r"
 	parts[#parts + 1] = ns.HasYield() and "Yield: є" or "|cffff6666Yield: немає|r"
 	local recipes, chars = ns.RecipeCount()
-	parts[#parts + 1] = string.format("рецептів: %d (%d перс.)", recipes, chars)
+	parts[#parts + 1] = string.format("рецептів: %d (%d проф.)", recipes, chars)
 	parts[#parts + 1] = string.format("варіантів: %d", count)
 	return table.concat(parts, "   ")
 end
@@ -40,35 +39,46 @@ local function rowTooltip(row)
 	GameTooltip:Show()
 end
 
-local function makeRow(parent, i)
+local HEADER_HEIGHT = 26
+-- Each section's colour: the header text, its rule and a faint wash behind its rows.
+local SECTION = {
+	craft = { title = "РЕКРАФТ · АФК", note = "купити матеріали → скрафтити → продати", color = { 0.4, 0.67, 1 } },
+	farm = { title = "ФАРМ", note = "місця з історії Yield, лут за сьогоднішніми цінами", color = { 0.4, 0.8, 0.4 } },
+}
+local SECTION_ORDER = { "craft", "farm" }
+
+local function makeRow(parent)
 	local r = CreateFrame("Button", nil, parent)
-	r:SetHeight(ROW_HEIGHT)
-	r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_HEIGHT)
 	r:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
-	local hl = r:CreateTexture(nil, "HIGHLIGHT")
-	hl:SetAllPoints()
-	hl:SetColorTexture(1, 1, 1, 0.08)
-	if i % 2 == 0 then
-		local bg = r:CreateTexture(nil, "BACKGROUND")
-		bg:SetAllPoints()
-		bg:SetColorTexture(1, 1, 1, 0.03)
-	end
+	r.hl = r:CreateTexture(nil, "HIGHLIGHT")
+	r.hl:SetAllPoints()
+	r.hl:SetColorTexture(1, 1, 1, 0.08)
+	r.bg = r:CreateTexture(nil, "BACKGROUND")
+	r.bg:SetAllPoints()
+	r.rule = r:CreateTexture(nil, "ARTWORK")
+	r.rule:SetHeight(1)
+	r.rule:SetPoint("BOTTOMLEFT", 4, 2)
+	r.rule:SetPoint("BOTTOMRIGHT", -4, 2)
+	r.header = r:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	r.header:SetPoint("LEFT", 6, 0)
+	r.headerNote = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	r.headerNote:SetPoint("LEFT", r.header, "RIGHT", 10, -1)
+	r.headerNote:SetPoint("RIGHT", -6, 0)
+	r.headerNote:SetJustifyH("LEFT")
 	r.rank = r:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 	r.rank:SetPoint("TOPLEFT", 4, -4)
 	r.rank:SetWidth(22)
 	r.rank:SetJustifyH("RIGHT")
-	r.tag = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	r.tag:SetPoint("TOPLEFT", 32, -5)
 	r.value = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	r.value:SetPoint("TOPRIGHT", -6, -4)
 	r.value:SetJustifyH("RIGHT")
 	r.title = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	r.title:SetPoint("TOPLEFT", 82, -4)
+	r.title:SetPoint("TOPLEFT", 32, -4)
 	r.title:SetPoint("RIGHT", r.value, "LEFT", -8, 0)
 	r.title:SetJustifyH("LEFT")
 	r.title:SetWordWrap(false)
 	r.detail = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	r.detail:SetPoint("TOPLEFT", 82, -21)
+	r.detail:SetPoint("TOPLEFT", 32, -21)
 	r.detail:SetPoint("RIGHT", -6, 0)
 	r.detail:SetJustifyH("LEFT")
 	r.detail:SetWordWrap(false)
@@ -78,36 +88,80 @@ local function makeRow(parent, i)
 	return r
 end
 
+local function setHeader(r, kind, count)
+	local s = SECTION[kind]
+	local c = s.color
+	r.activity = nil
+	r:SetHeight(HEADER_HEIGHT)
+	r:EnableMouse(false)
+	r.hl:Hide()
+	r.bg:SetColorTexture(c[1], c[2], c[3], 0.12)
+	r.rule:SetColorTexture(c[1], c[2], c[3], 0.8)
+	r.rule:Show()
+	r.header:SetText(s.title)
+	r.header:SetTextColor(c[1], c[2], c[3])
+	r.headerNote:SetText(count > 0 and s.note or "нічого вигідного (/wtd — підказки)")
+	r.header:Show(); r.headerNote:Show()
+	r.rank:Hide(); r.value:Hide(); r.title:Hide(); r.detail:Hide()
+end
+
+local function setActivity(r, a, rank)
+	local c = SECTION[a.kind].color
+	r.activity = a
+	r:SetHeight(ROW_HEIGHT)
+	r:EnableMouse(true)
+	r.hl:Show()
+	r.bg:SetColorTexture(c[1], c[2], c[3], rank % 2 == 0 and 0.07 or 0.03)
+	r.rule:Hide()
+	r.header:Hide(); r.headerNote:Hide()
+	r.rank:SetText(rank .. ".")
+	r.title:SetText(a.title)
+	r.detail:SetText(a.detail or "")
+	r.value:SetText(coinText(a.perHour) .. "/год")
+	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show()
+end
+
 function ns.Refresh()
 	if not frame or not frame:IsShown() then return end
 	ns.pendingNames = false
-	local list = ns.Rank(filter)
-	local shown = math.min(#list, ns.Setting("results"), ROWS_MAX)
-	for i = 1, shown do
-		local r = rows[i] or makeRow(frame.content, i)
-		rows[i] = r
-		local a = list[i]
-		r.activity = a
-		r.rank:SetText(i .. ".")
-		r.tag:SetText(KIND_TAG[a.kind] or a.kind)
-		r.title:SetText(a.title)
-		r.detail:SetText(a.detail or "")
-		r.value:SetText(coinText(a.perHour) .. "/год")
+	local limit = math.min(ns.Setting("results"), ROWS_MAX)
+	local used, y, total = 0, 0, 0
+	local function nextRow()
+		used = used + 1
+		local r = rows[used] or makeRow(frame.content)
+		rows[used] = r
+		r:ClearAllPoints()
+		r:SetPoint("TOPLEFT", frame.content, "TOPLEFT", 0, -y)
+		r:SetPoint("RIGHT", frame.content, "RIGHT", 0, 0)
 		r:Show()
+		return r
 	end
-	for i = shown + 1, #rows do rows[i]:Hide(); rows[i].activity = nil end
-	frame.content:SetHeight(math.max(1, shown * ROW_HEIGHT))
-	frame.empty:SetShown(shown == 0)
-	frame.status:SetText(statusText(#list))
+	for _, kind in ipairs(SECTION_ORDER) do
+		if filter == "all" or filter == kind then
+			local list = ns.Rank(kind)
+			total = total + #list
+			if y > 0 then y = y + 8 end -- a gap between the sections
+			setHeader(nextRow(), kind, #list)
+			y = y + HEADER_HEIGHT
+			for i = 1, math.min(#list, limit) do
+				setActivity(nextRow(), list[i], i)
+				y = y + ROW_HEIGHT
+			end
+		end
+	end
+	for i = used + 1, #rows do rows[i]:Hide(); rows[i].activity = nil end
+	frame.content:SetHeight(math.max(1, y))
+	frame.empty:SetShown(total == 0 and filter == "all")
+	frame.status:SetText(statusText(total))
 	for key, b in pairs(frame.tabs) do
 		if key == filter then b:LockHighlight() else b:UnlockHighlight() end
 	end
 end
 
 local EMPTY_TEXT = "Поки нічого порадити.\n\n" ..
-	"Фарм: увімкніть Yield і пофарміть хоча б 10 хв на одному місці.\n" ..
-	"Крафт: проскануйте аукціон в Auctionator і відкрийте вікна своїх професій,\n" ..
-	"щоб WhatToDo запам'ятав рецепти (з усіх персонажів)."
+	"Рекрафт: проскануйте аукціон в Auctionator і відкрийте вікна професій цього персонажа,\n" ..
+	"щоб WhatToDo запам'ятав рецепти.\n" ..
+	"Фарм: увімкніть Yield і пофарміть хоча б 10 хв на одному місці."
 
 local function create()
 	local f = CreateFrame("Frame", "WhatToDoFrame", UIParent, "BasicFrameTemplateWithInset")
@@ -137,7 +191,7 @@ local function create()
 	end
 	tab("all", "Усе", 12)
 	tab("farm", "Фарм", 96)
-	tab("craft", "Крафт", 180)
+	tab("craft", "Рекрафт", 180)
 
 	local refresh = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	refresh:SetSize(90, 22)
@@ -155,7 +209,7 @@ local function create()
 	f.content = content
 
 	f.empty = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	f.empty:SetPoint("CENTER", 0, 10)
+	f.empty:SetPoint("CENTER", 0, -20)
 	f.empty:SetWidth(540)
 	f.empty:SetText(EMPTY_TEXT)
 
@@ -197,15 +251,19 @@ local SETTING_HELP = {
 	minFarmMinutes = "мінімум хвилин даних Yield для місця фарму",
 	maxPriceAgeDays = "макс. вік цін аукціону, днів",
 	minProfit = "мінімальний прибуток за крафт, мідь",
-	results = "скільки рядків показувати",
+	results = "скільки рядків показувати в кожній секції",
+	essences = "1 — рахувати об'єднання есенцій (без професії), 0 — ні",
 }
 
 local function printTop(n)
-	local list = ns.Rank("all")
-	if #list == 0 then return ns.Out("поки нічого порадити — /wtd відкриє вікно з підказками.") end
-	for i = 1, math.min(n, #list) do
-		local a = list[i]
-		print(string.format("%d. [%s] %s — %s/год", i, a.kind == "farm" and "фарм" or "крафт", a.title, ns.Coin(a.perHour)))
+	for _, kind in ipairs(SECTION_ORDER) do
+		local list = ns.Rank(kind)
+		print("|cffffd100" .. SECTION[kind].title .. "|r")
+		if #list == 0 then print("  нічого вигідного") end
+		for i = 1, math.min(n, #list) do
+			local a = list[i]
+			print(string.format("  %d. %s — %s/год", i, a.title, ns.Coin(a.perHour)))
+		end
 	end
 end
 

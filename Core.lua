@@ -18,7 +18,8 @@ ns.DEFAULTS = {
 	maxPriceAgeDays = 3,   -- skip crafts whose product or AH reagents were last scanned longer ago
 	minProfit = 100,       -- copper per craft below which a recipe isn't worth listing
 	ahCut = 0.05,
-	results = 25,
+	results = 15,          -- rows per section
+	essences = 1,          -- 1: include combining/splitting enchanting essences (no profession needed)
 }
 
 local function copyDefaults(into, from)

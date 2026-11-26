@@ -44,7 +44,7 @@ local function evaluate(entry)
 	local inputs = {}
 	for _, p in ipairs(parts) do inputs[#inputs + 1] = string.format("%dx %s", p.count, ns.ItemName(p.id)) end
 
-	local who = (#entry.who > 0) and table.concat(entry.who, ", ") or "будь-хто"
+	local who = (#entry.who > 0) and table.concat(entry.who, ", ") or "без професії"
 	local listedProduct = ns.Available(r.product)
 	local tip = {
 		{ "Продаж" .. madeText, ns.Coin(gross * made) .. "  (чисто " .. ns.Coin(revenue) .. ")" },
@@ -59,7 +59,7 @@ local function evaluate(entry)
 	tip[#tip + 1] = { "Прибуток партії", ns.Coin(profit * crafts) }
 	if listedProduct then tip[#tip + 1] = { "Конкуренти на аукціоні", tostring(listedProduct) .. " шт." } end
 	tip[#tip + 1] = { "Ціни сканувались", (age == 0) and "сьогодні" or string.format("%d дн. тому", age or 0) }
-	tip[#tip + 1] = { "Хто може", who }
+	tip[#tip + 1] = { "Професія", who }
 
 	return {
 		kind = "craft",

@@ -1,5 +1,6 @@
 -- Recipes: what each character can craft, read from the trade skill window whenever it's open, and kept
--- in WhatToDoDB.recipes[char][profession][recipeName] so alts' professions count too.
+-- in WhatToDoDB.recipes[char][profession][recipeName]. Only the logged-in character's recipes, in
+-- professions it still has, are offered (ns.AllRecipes).
 -- Recipes under a collapsed header aren't listed by the game, so only expanded ones are recorded; known
 -- ones are never dropped by a later, partial scan.
 -- Enchanting (the Craft window) makes no items and isn't read.
@@ -103,45 +104,59 @@ f:RegisterEvent("TRADE_SKILL_SHOW")
 f:RegisterEvent("TRADE_SKILL_UPDATE")
 f:SetScript("OnEvent", scheduleScan)
 
--- Every recipe any character knows, merged by what it uses and makes: { recipe, who = { charName, ... } }.
-function ns.AllRecipes()
-	local merged, order = {}, {}
-	local function add(r, who)
-		local parts = { r.product, r.made }
-		for _, rg in ipairs(r.reagents) do parts[#parts + 1] = rg[1] .. "x" .. rg[2] end
-		local key = table.concat(parts, ":")
-		local entry = merged[key]
-		if not entry then
-			entry = { recipe = r, who = {} }
-			merged[key] = entry
-			order[#order + 1] = entry
-		end
-		if who then entry.who[#entry.who + 1] = who end
+-- The trade skill window's name for a profession, when it isn't the skill's own (Mining opens "Smelting").
+local WINDOW_TO_SKILL = { Smelting = "Mining" }
+
+-- The current character's professions from the skill list, or nil when the list can't say for sure
+-- (no API, or a collapsed header hiding some lines - then nothing is filtered rather than everything).
+function ns.CurrentProfessions()
+	if not (GetNumSkillLines and GetSkillLineInfo) then return nil end
+	local set, seen = {}, 0
+	for i = 1, GetNumSkillLines() or 0 do
+		local name, isHeader, isExpanded = GetSkillLineInfo(i)
+		if isHeader and not isExpanded then return nil end
+		if name and not isHeader then set[name] = true; seen = seen + 1 end
 	end
-	for _, r in ipairs(ns.CONVERSIONS) do add(r, nil) end
-	for charKey, professions in pairs((WhatToDoDB and WhatToDoDB.recipes) or {}) do
-		local charName = charKey:match("^([^-]+)") or charKey
-		for profession, recipes in pairs(professions) do
-			if type(recipes) == "table" then
-				for name, r in pairs(recipes) do
-					r.name, r.profession = name, profession
-					add(r, charName)
-				end
-			end
-		end
-	end
-	return order
+	return seen > 0 and set or nil
 end
 
-function ns.RecipeCount()
-	local chars, recipes = 0, 0
-	for _, professions in pairs((WhatToDoDB and WhatToDoDB.recipes) or {}) do
-		chars = chars + 1
-		for _, list in pairs(professions) do
-			if type(list) == "table" then
-				for _ in pairs(list) do recipes = recipes + 1 end
+local function hasProfession(current, profession)
+	if not current then return true end
+	return current[profession] or current[WINDOW_TO_SKILL[profession] or profession] or false
+end
+
+-- The recipes the current character can craft now: its recorded professions that it still has,
+-- plus the profession-free essence conversions (setting "essences"). { recipe, who = { name } } each.
+function ns.AllRecipes()
+	local out = {}
+	if ns.Setting("essences") == 1 then
+		for _, r in ipairs(ns.CONVERSIONS) do out[#out + 1] = { recipe = r, who = {} } end
+	end
+	local charKey = ns.CharKey()
+	local professions = (WhatToDoDB and WhatToDoDB.recipes and WhatToDoDB.recipes[charKey]) or {}
+	local current = ns.CurrentProfessions()
+	local charName = charKey:match("^([^-]+)") or charKey
+	for profession, recipes in pairs(professions) do
+		if type(recipes) == "table" and hasProfession(current, profession) then
+			for name, r in pairs(recipes) do
+				r.name, r.profession = name, profession
+				out[#out + 1] = { recipe = r, who = { profession } }
 			end
 		end
 	end
-	return recipes, chars
+	return out
+end
+
+-- Recipes counted for the status line: the current character's, in professions it still has.
+function ns.RecipeCount()
+	local count, professions = 0, 0
+	local current = ns.CurrentProfessions()
+	local mine = (WhatToDoDB and WhatToDoDB.recipes and WhatToDoDB.recipes[ns.CharKey()]) or {}
+	for profession, list in pairs(mine) do
+		if type(list) == "table" and hasProfession(current, profession) then
+			professions = professions + 1
+			for _ in pairs(list) do count = count + 1 end
+		end
+	end
+	return count, professions
 end
