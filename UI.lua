@@ -244,6 +244,13 @@ local function create()
 	lang:SetScript("OnClick", function() ns.SetLanguage(ns.Lang() == "en" and "uk" or "en") end)
 	f.langButton = lang
 
+	-- "?" opens the guide
+	local help = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	help:SetSize(22, 18)
+	help:SetPoint("RIGHT", lang, "LEFT", -4, 0)
+	help:SetText("?")
+	help:SetScript("OnClick", function() ns.ShowGuide() end)
+
 	local scroll = CreateFrame("ScrollFrame", "WhatToDoScroll", f, "UIPanelScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", 10, -58)
 	scroll:SetPoint("BOTTOMRIGHT", -32, 30)
@@ -292,6 +299,7 @@ function ns.ApplyLanguage()
 		frame.shareButton:SetText(T("Поділитися з ціллю"))
 		frame.langButton:SetText(ns.Lang() == "en" and "UA" or "EN") -- the language a click switches to
 	end
+	if ns.RefreshGuide then ns.RefreshGuide() end
 	ns.Refresh()
 end
 
@@ -409,6 +417,8 @@ SlashCmdList.WHATTODO = function(msg)
 		else
 			ns.Out("/wtd lang en | /wtd lang uk")
 		end
+	elseif cmd == "guide" then
+		ns.ShowGuide()
 	elseif cmd == "share" then
 		ns.ShareWithTarget()
 	elseif cmd == "shared" then
@@ -432,7 +442,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out(T("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій."))
 	else
-		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
+		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd guide - інструкція, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
 	end
 end
 

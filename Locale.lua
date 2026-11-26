@@ -245,7 +245,8 @@ local EN = {
 	["Поділитися з ціллю"] = "Share with target",
 	["отримані дані забуто."] = "received data forgotten.",
 	["дані, якими з вами поділились:"] = "data shared with you:",
-	["/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"] = "/wtd - window, /wtd top [n] - top picks to chat, /wtd set - settings, /wtd check <item> - why (not) suggested, /wtd debug, /wtd version, /wtd lang en|uk - language, /wtd minimap - hide/show button, /wtd stats - actual sales, /wtd share - share with target, /wtd shared [clear [name]] - received data, /wtd reset, /wtd ledger reset, /wtd forget - forget character recipes",
+	["/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd guide - інструкція, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"] = "/wtd - window, /wtd top [n] - top picks to chat, /wtd set - settings, /wtd check <item> - why (not) suggested, /wtd debug, /wtd version, /wtd lang en|uk - language, /wtd minimap - hide/show button, /wtd stats - actual sales, /wtd share - share with target, /wtd shared [clear [name]] - received data, /wtd guide - guide, /wtd reset, /wtd ledger reset, /wtd forget - forget character recipes",
+	["Інструкція"] = "Guide",
 }
 
 function ns.Lang()
