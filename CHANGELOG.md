@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.13.1
+- Repository: `release/WhatToDo.zip` and `release/VERSION`, README with install/update steps for AI agents.
 - "?" next to the share button: tooltip and a sharing guide page.
 
 ## 0.13.0
