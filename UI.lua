@@ -41,7 +41,7 @@ local ALL_ICON = "Interface\\Icons\\INV_Misc_Coin_02"
 -- A recraft row shows its profession's own icon (the gear stays on the tab and for anything unknown).
 local PROFESSION_ICON = {
 	Blacksmithing = "Trade_BlackSmithing", Tailoring = "Trade_Tailoring", Leatherworking = "INV_Misc_ArmorKit_17",
-	Engineering = "Trade_Engineering", Mining = "Trade_Mining", Alchemy = "Trade_Alchemy", Enchanting = "Trade_Engraving",
+	Engineering = "Trade_Engineering", Mining = "Spell_Fire_FlameBlade", Alchemy = "Trade_Alchemy", Enchanting = "Trade_Engraving",
 	Essences = "Trade_Engraving", Cooking = "INV_Misc_Food_15", ["First Aid"] = "Spell_Holy_SealOfSacrifice",
 	Jewelcrafting = "INV_Misc_Gem_01", Inscription = "INV_Inscription_Tradeskill01",
 }

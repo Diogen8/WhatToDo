@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.7
+- Smelting recipes show the Smelting icon.
+
 ## 0.17.6
 - Gathering (mining, herbs, skinning, fishing) on less than an hour of data gets a lower chance of success: about half at 10 minutes, full at an hour.
 - Tab icons: 1 pixel lower than centre instead of 1.5.
