@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.5
+- Tab icons sit centred on their buttons.
+
 ## 0.17.4
 - The Recraft tab has a gear icon; recraft rows show their profession's own icon.
 
