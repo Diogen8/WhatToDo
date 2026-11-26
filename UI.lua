@@ -26,11 +26,26 @@ local function statusText(count)
 	return table.concat(parts, "   ")
 end
 
+-- Each activity kind: its icon (rows and tabs), and its colour (header text, rule, a faint wash behind its rows).
+local SECTION = {
+	craft = { icon = "Interface\\Icons\\Trade_BlackSmithing", title = "РЕКРАФТ (АФК)", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
+	learn = { icon = "Interface\\Icons\\INV_Misc_Book_09", title = "РЕКРАФТ: ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
+	farm = { icon = "Interface\\Icons\\INV_Sword_04", title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
+	mining = { icon = "Interface\\Icons\\Trade_Mining", title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
+	herbalism = { icon = "Interface\\Icons\\Trade_Herbalism", title = "ЗБІР ТРАВ", note = "трави, за годину на місці", color = { 0.45, 0.85, 0.45 }, hideEmpty = true },
+	skinning = { icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01", title = "СКІНІНГ", note = "шкури з мобів, за годину на місці", color = { 0.85, 0.7, 0.45 }, hideEmpty = true },
+	fishing = { icon = "Interface\\Icons\\Trade_Fishing", title = "РИБОЛОВЛЯ", note = "улов, за годину на місці", color = { 0.3, 0.85, 0.8 }, hideEmpty = true },
+}
+local SECTION_ORDER = { "craft", "learn", "farm", "mining", "herbalism", "skinning", "fishing" }
+local ALL_ICON = "Interface\\Icons\\INV_Misc_Coin_02"
+
 local function rowTooltip(row)
 	local a = row.activity
 	if not a then return end
 	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
 	GameTooltip:AddLine(a.title, 1, 0.82, 0, true)
+	local sec = SECTION[a.kind]
+	if sec then GameTooltip:AddLine("|T" .. sec.icon .. ":14:14:0:0:64:64:5:59:5:59|t " .. T(sec.title), sec.color[1], sec.color[2], sec.color[3]) end
 	if a.range then
 		GameTooltip:AddDoubleLine(T("Золота за годину"), coinText(a.range[1]) .. " - " .. coinText(a.range[3]), 1, 1, 1, 1, 1, 1)
 	else
@@ -56,17 +71,6 @@ local function rowTooltip(row)
 end
 
 local HEADER_HEIGHT = 26
--- Each section's colour: the header text, its rule and a faint wash behind its rows.
-local SECTION = {
-	craft = { title = "РЕКРАФТ (АФК)", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
-	learn = { title = "РЕКРАФТ: ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
-	farm = { title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
-	mining = { title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
-	herbalism = { title = "ЗБІР ТРАВ", note = "трави, за годину на місці", color = { 0.45, 0.85, 0.45 }, hideEmpty = true },
-	skinning = { title = "СКІНІНГ", note = "шкури з мобів, за годину на місці", color = { 0.85, 0.7, 0.45 }, hideEmpty = true },
-	fishing = { title = "РИБОЛОВЛЯ", note = "улов, за годину на місці", color = { 0.3, 0.85, 0.8 }, hideEmpty = true },
-}
-local SECTION_ORDER = { "craft", "learn", "farm", "mining", "herbalism", "skinning", "fishing" }
 
 local function makeRow(parent)
 	local r = CreateFrame("Button", nil, parent)
@@ -93,8 +97,12 @@ local function makeRow(parent)
 	r.value = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	r.value:SetPoint("TOPRIGHT", -6, -4)
 	r.value:SetJustifyH("RIGHT")
+	r.icon = r:CreateTexture(nil, "ARTWORK")
+	r.icon:SetSize(28, 28)
+	r.icon:SetPoint("LEFT", 30, 0)
+	r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 	r.title = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	r.title:SetPoint("TOPLEFT", 32, -4)
+	r.title:SetPoint("TOPLEFT", 64, -4)
 	r.title:SetPoint("RIGHT", r.value, "LEFT", -8, 0)
 	r.title:SetJustifyH("LEFT")
 	r.title:SetWordWrap(false)
@@ -102,7 +110,7 @@ local function makeRow(parent)
 	r.trust:SetPoint("TOPRIGHT", -6, -21)
 	r.trust:SetJustifyH("RIGHT")
 	r.detail = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	r.detail:SetPoint("TOPLEFT", 32, -21)
+	r.detail:SetPoint("TOPLEFT", 64, -21)
 	r.detail:SetPoint("RIGHT", r.trust, "LEFT", -8, 0)
 	r.detail:SetJustifyH("LEFT")
 	r.detail:SetWordWrap(false)
@@ -129,7 +137,7 @@ local function setHeader(r, kind, count)
 	r.header:SetTextColor(c[1], c[2], c[3])
 	r.headerNote:SetText(count > 0 and T(s.note) or T("нічого вигідного (/wtd - підказки)"))
 	r.header:Show(); r.headerNote:Show()
-	r.rank:Hide(); r.value:Hide(); r.title:Hide(); r.detail:Hide(); r.trust:Hide()
+	r.rank:Hide(); r.value:Hide(); r.title:Hide(); r.detail:Hide(); r.trust:Hide(); r.icon:Hide()
 end
 
 local function setActivity(r, a, rank)
@@ -142,6 +150,7 @@ local function setActivity(r, a, rank)
 	r.rule:Hide()
 	r.header:Hide(); r.headerNote:Hide()
 	r.rank:SetText(rank .. ".")
+	r.icon:SetTexture(SECTION[a.kind].icon)
 	r.title:SetText(a.title)
 	local detail = a.detail or ""
 	if a.corrected and a.expectedPerHour and a.expectedPerHour > 0 then
@@ -152,7 +161,7 @@ local function setActivity(r, a, rank)
 	local label, tr, tg, tb = (a.range and ns.SuccessLabel or ns.TrustLabel)(a.trust)
 	r.trust:SetText(label)
 	r.trust:SetTextColor(tr, tg, tb)
-	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show(); r.trust:Show()
+	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show(); r.trust:Show(); r.icon:Show()
 end
 
 local function emptyText()
@@ -178,8 +187,16 @@ function ns.Refresh()
 		r:Show()
 		return r
 	end
+	if filter == "all" then -- one list across every activity, best first; the icon tells them apart
+		local list = ns.Rank("all")
+		total = #list
+		for i = 1, math.min(#list, limit) do
+			setActivity(nextRow(), list[i], i)
+			y = y + ROW_HEIGHT
+		end
+	end
 	for _, kind in ipairs(SECTION_ORDER) do
-		local list = (filter == "all" or filter == kind or (filter == "craft" and kind == "learn")) and ns.Rank(kind)
+		local list = filter ~= "all" and (filter == kind or (filter == "craft" and kind == "learn")) and ns.Rank(kind)
 		if list and not (#list == 0 and SECTION[kind].hideEmpty) then
 			total = total + #list
 			if y > 0 then y = y + 8 end -- a gap between the sections
@@ -226,6 +243,22 @@ local function create()
 		b:SetSize(82, 22)
 		b:SetPoint("TOPLEFT", x, -30)
 		b.label = label
+		b:SetNormalFontObject("GameFontNormalSmall")
+		b:SetHighlightFontObject("GameFontHighlightSmall")
+		b:SetText(label)
+		local icon = b:CreateTexture(nil, "OVERLAY")
+		icon:SetSize(16, 16)
+		icon:SetPoint("LEFT", 5, 0)
+		icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+		icon:SetTexture(key == "all" and ALL_ICON or SECTION[key].icon)
+		local text = b:GetFontString()
+		if text then
+			text:ClearAllPoints()
+			text:SetPoint("LEFT", icon, "RIGHT", 3, 0)
+			text:SetPoint("RIGHT", -4, 0)
+			text:SetJustifyH("LEFT")
+			text:SetWordWrap(false)
+		end
 		b:SetScript("OnClick", function() filter = key; ns.Refresh() end)
 		f.tabs[key] = b
 	end

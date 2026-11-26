@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.2
+- The "All" tab is one list, best first, instead of a section per activity; every row has its activity's icon (the same icons are on the tabs and in the tooltip).
+
 ## 0.17.1
 - "Recraft if learned" no longer suggests a profession that one of your characters already has.
 
