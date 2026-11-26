@@ -396,7 +396,7 @@ function ns.FarmActivities()
 					stalestHours = stalestItem and stalestHours or nil, stalestItem = stalestItem }
 				if ns.FarmRange and total > 0 then
 					v.range = ns.FarmRange(total * 3600 / s.seconds, s.seconds / 3600, ahValue > 0 and ahHours / ahValue or nil,
-						ahValue / total, gearValue / total)
+						ahValue / total, gearValue / total, cat ~= "farm")
 				end
 				valued[#valued + 1] = v
 				spotTotal = spotTotal + v.value

@@ -225,7 +225,7 @@ end
 -- rate: the spot's gold/h from history; hours: tracked hours behind it; priceHours: age of its AH prices
 -- (value-weighted); ahShare, gearShare: shares of its value priced on the AH and coming from gear.
 -- Returns { p10, p50, p90, success, drivers }.
-function ns.FarmRange(rate, hours, priceHours, ahShare, gearShare)
+function ns.FarmRange(rate, hours, priceHours, ahShare, gearShare, gathering)
 	local bias, between, checked = farmSpread()
 	local sigmaMean = 0.3 / math.sqrt(math.max(hours or 0, 0.17))
 	local sigmaPrice = (ahShare or 0) * ageSigma(priceHours) + (gearShare or 0) * 0.4
@@ -235,9 +235,13 @@ function ns.FarmRange(rate, hours, priceHours, ahShare, gearShare)
 	if checked < 3 then drivers[#drivers + 1] = T("мало перевірених сесій фарму") end
 	if (gearShare or 0) > 0.3 then drivers[#drivers + 1] = T("багато доходу з екіпірування") end
 	if priceHours and priceHours > 6 and (ahShare or 0) > 0.3 then drivers[#drivers + 1] = string.format(T("ціни не свіжі (%s)"), ns.AgeText(priceHours)) end
+	local success = phi((bias - math.log(0.5)) / sigma)
+	-- gathering on less than an hour of data: nodes respawn and other gatherers compete, so a short sample says
+	-- little; the chance shrinks with the missing time (10 minutes of data: about half)
+	if gathering and (hours or 0) < 1 then success = success * (0.4 + 0.6 * math.max(hours or 0, 0)) end
 	return {
 		p10 = rate * math.exp(bias - Z90 * sigma), p50 = rate * math.exp(bias), p90 = rate * math.exp(bias + Z90 * sigma),
-		success = phi((bias - math.log(0.5)) / sigma), drivers = drivers, sigma = sigma,
+		success = success, drivers = drivers, sigma = sigma,
 	}
 end
 
