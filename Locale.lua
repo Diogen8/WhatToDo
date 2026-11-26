@@ -305,6 +305,13 @@ local EN = {
 	["%d%% ваші дані тут, %d%% типове"] = "%d%% your data here, %d%% typical",
 	["  тут за вашими даними"] = "  here, by your data",
 	["  типово (%s в інших місцях)"] = "  typical (%s elsewhere)",
+	["Загальне"] = "Overview",
+	["По зонах"] = "By zone",
+	["Ресурси"] = "Resources",
+	["Плавка"] = "Smelting",
+	["ЗОНА"] = "ZONE",
+	["найкраще: %s"] = "best: %s",
+	[", місць: %d"] = ", spots: %d",
 }
 
 function ns.Lang()

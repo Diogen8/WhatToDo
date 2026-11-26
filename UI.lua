@@ -4,6 +4,7 @@ local T = function(s) return ns.T(s) end
 
 local ROW_HEIGHT, ROWS_MAX = 38, 40
 local frame, rows, filter = nil, {}, "all"
+local sub = { craft = "all", gather = "all" } -- the second-level tab under Recraft and Resources
 
 local function coinText(copper)
 	copper = math.floor(copper / 100 + 0.5) * 100 -- to the silver
@@ -37,8 +38,11 @@ local SECTION = {
 	skinning = { icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01", title = "СКІНІНГ", note = "шкури з мобів, за годину на місці", color = { 0.85, 0.7, 0.45 }, hideEmpty = true },
 	fishing = { icon = "Interface\\Icons\\Trade_Fishing", title = "РИБОЛОВЛЯ", note = "улов, за годину на місці", color = { 0.3, 0.85, 0.8 }, hideEmpty = true },
 }
+SECTION.zone = { icon = "Interface\\Icons\\INV_Misc_Map_01", title = "ЗОНА", note = "", color = { 0.85, 0.8, 0.5 } }
 local SECTION_ORDER = { "craft", "learn", "farm", "mining", "herbalism", "skinning", "fishing" }
+local GATHER_KINDS = { "mining", "herbalism", "skinning", "fishing" }
 local ALL_ICON = "Interface\\Icons\\INV_Misc_Coin_02"
+local GATHER_ICON = "Interface\\Icons\\INV_Misc_Bag_10"
 -- A recraft row shows its profession's own icon (the gear stays on the tab and for anything unknown).
 local PROFESSION_ICON = {
 	Blacksmithing = "Trade_BlackSmithing", Tailoring = "Trade_Tailoring", Leatherworking = "INV_Misc_ArmorKit_17",
@@ -60,6 +64,78 @@ local function activityIcon(a)
 	end
 	local p = a.kind == "craft" and a.profession and PROFESSION_ICON[a.profession]
 	return p and ("Interface\\Icons\\" .. p) or SECTION[a.kind].icon
+end
+
+-- Recraft sub-tabs: one per profession (essence conversions go with Enchanting, smelting is Mining's).
+local function professionKey(a)
+	return a.profession == "Essences" and "Enchanting" or a.profession or "?"
+end
+local function professionIcon(key)
+	if key == "Mining" then
+		local tex = spellIcon(2656)
+		if tex then return tex end
+	end
+	return PROFESSION_ICON[key] and ("Interface\\Icons\\" .. PROFESSION_ICON[key]) or SECTION.craft.icon
+end
+local function professionLabel(key)
+	return key == "Mining" and T("Плавка") or key
+end
+
+-- "By zone": every mob farming and gathering row of a zone gathered into one; a spot's activities add up
+-- (you mine and skin while you kill), the zone shows its best spot.
+local function zoneActivities()
+	local zones, order = {}, {}
+	for _, a in ipairs(ns.Rank("all")) do
+		if a.mapID and a.kind ~= "craft" and a.kind ~= "learn" then
+			local z = zones[a.mapID]
+			if not z then
+				z = { spots = {}, kinds = {} }
+				zones[a.mapID] = z
+				order[#order + 1] = a.mapID
+			end
+			z.zone = a.zone or a.title
+			z.kinds[a.kind] = true
+			local sp = z.spots[a.subzone or ""]
+			if not sp then
+				sp = { subzone = a.subzone or "", acts = {}, p10 = 0, p50 = 0, p90 = 0, success = 0, title = a.title }
+				z.spots[a.subzone or ""] = sp
+			end
+			sp.acts[#sp.acts + 1] = a
+			local r = a.range or { a.perHour, a.perHour, a.perHour }
+			sp.p10, sp.p50, sp.p90 = sp.p10 + r[1], sp.p50 + r[2], sp.p90 + r[3]
+			sp.success = sp.success + (a.trust or 0) * r[2]
+		end
+	end
+	local out = {}
+	for _, mapID in ipairs(order) do
+		local z = zones[mapID]
+		local list = {}
+		for _, sp in pairs(z.spots) do list[#list + 1] = sp end
+		table.sort(list, function(x, y) return x.p50 > y.p50 end)
+		local best = list[1]
+		local icons = {}
+		for _, kind in ipairs({ "farm", "mining", "herbalism", "skinning", "fishing" }) do
+			if z.kinds[kind] then icons[#icons + 1] = "|T" .. SECTION[kind].icon .. ":14:14:0:0:64:64:5:59:5:59|t" end
+		end
+		local tip = {}
+		for _, sp in ipairs(list) do
+			tip[#tip + 1] = { sp.subzone ~= "" and sp.subzone or z.zone, ns.Coin(sp.p50) .. T("/год") }
+			table.sort(sp.acts, function(x, y) return x.perHour > y.perHour end)
+			for _, a in ipairs(sp.acts) do
+				tip[#tip + 1] = { "   |T" .. activityIcon(a) .. ":14:14:0:0:64:64:5:59:5:59|t " .. T(SECTION[a.kind].title), ns.Coin(a.perHour) .. T("/год") }
+			end
+		end
+		local detail = table.concat(icons, " ") .. "  " .. string.format(T("найкраще: %s"), best.subzone ~= "" and best.subzone or z.zone)
+		if #list > 1 then detail = detail .. string.format(T(", місць: %d"), #list) end
+		out[#out + 1] = {
+			kind = "zone", title = z.zone, mapID = mapID, subzone = best.subzone,
+			perHour = best.p50, range = { best.p10, best.p50, best.p90 },
+			trust = best.p50 > 0 and best.success / best.p50 or 0,
+			detail = detail, tooltip = tip,
+		}
+	end
+	table.sort(out, function(x, y) return x.perHour > y.perHour end)
+	return out
 end
 
 local function rowTooltip(row)
@@ -215,27 +291,65 @@ function ns.Refresh()
 		r:Show()
 		return r
 	end
-	if filter == "all" then -- one list across every activity, best first; the icon tells them apart
-		local list = ns.Rank("all")
-		total = #list
+	local function flat(list)
+		total = total + #list
 		for i = 1, math.min(#list, limit) do
 			setActivity(nextRow(), list[i], i)
 			y = y + ROW_HEIGHT
 		end
 	end
-	for _, kind in ipairs(SECTION_ORDER) do
-		local list = filter ~= "all" and (filter == kind or (filter == "craft" and kind == "learn")) and ns.Rank(kind)
-		if list and not (#list == 0 and SECTION[kind].hideEmpty) then
-			total = total + #list
-			if y > 0 then y = y + 8 end -- a gap between the sections
-			setHeader(nextRow(), kind, #list)
-			y = y + HEADER_HEIGHT
-			for i = 1, math.min(#list, limit) do
-				setActivity(nextRow(), list[i], i)
-				y = y + ROW_HEIGHT
-			end
+	local function section(kind, list)
+		if #list == 0 and SECTION[kind].hideEmpty then return end
+		total = total + #list
+		if y > 0 then y = y + 8 end -- a gap between the sections
+		setHeader(nextRow(), kind, #list)
+		y = y + HEADER_HEIGHT
+		for i = 1, math.min(#list, limit) do
+			setActivity(nextRow(), list[i], i)
+			y = y + ROW_HEIGHT
 		end
 	end
+	local function byProfession(list)
+		if sub.craft == "all" then return list end
+		local out = {}
+		for _, a in ipairs(list) do if professionKey(a) == sub.craft then out[#out + 1] = a end end
+		return out
+	end
+
+	local subtabs = {}
+	if filter == "all" then -- one list across every activity, best first; the icon tells them apart
+		flat(ns.Rank("all"))
+	elseif filter == "zones" then
+		flat(zoneActivities())
+	elseif filter == "farm" then
+		section("farm", ns.Rank("farm"))
+	elseif filter == "craft" then
+		local craft, learn = ns.Rank("craft"), ns.Rank("learn")
+		local seen = {}
+		for _, list in ipairs({ craft, learn }) do
+			for _, a in ipairs(list) do
+				local key = professionKey(a)
+				if not seen[key] then seen[key] = true; subtabs[#subtabs + 1] = key end
+			end
+		end
+		table.sort(subtabs, function(x, y) return professionLabel(x) < professionLabel(y) end)
+		if sub.craft ~= "all" and not seen[sub.craft] then sub.craft = "all" end
+		section("craft", byProfession(craft))
+		section("learn", byProfession(learn))
+	elseif filter == "gather" then
+		for _, kind in ipairs(GATHER_KINDS) do subtabs[#subtabs + 1] = kind end
+		if sub.gather == "all" then
+			local list = {}
+			for _, kind in ipairs(GATHER_KINDS) do
+				for _, a in ipairs(ns.Rank(kind)) do list[#list + 1] = a end
+			end
+			table.sort(list, function(a, b) return a.perHour > b.perHour end)
+			flat(list)
+		else
+			section(sub.gather, ns.Rank(sub.gather))
+		end
+	end
+	ns.ShowSubtabs(subtabs)
 	for i = used + 1, #rows do rows[i]:Hide(); rows[i].activity = nil end
 	frame.content:SetHeight(math.max(1, y))
 	frame.empty:SetText(emptyText())
@@ -247,6 +361,65 @@ function ns.Refresh()
 	end
 end
 
+
+-- A tab button: a small icon, then its label.
+local function tabButton(parent, width, height)
+	local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	b:SetSize(width, height)
+	b:SetNormalFontObject("GameFontNormalSmall")
+	b:SetHighlightFontObject("GameFontHighlightSmall")
+	b:SetText(" ")
+	local icon = b:CreateTexture(nil, "OVERLAY")
+	icon:SetSize(12, 12)
+	icon:SetPoint("LEFT", 6, -1)
+	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	b.icon = icon
+	local text = b:GetFontString()
+	if text then
+		text:ClearAllPoints()
+		text:SetPoint("LEFT", icon, "RIGHT", 3, 0)
+		text:SetPoint("RIGHT", -4, 0)
+		text:SetJustifyH("LEFT")
+		text:SetWordWrap(false)
+	end
+	return b
+end
+
+local GATHER_LABEL = { mining = "Майнінг", herbalism = "Трави", skinning = "Скінінг", fishing = "Риболовля" }
+
+-- The second row of tabs (Recraft: professions; Resources: gathering kinds), "All" first; hidden elsewhere.
+function ns.ShowSubtabs(keys)
+	local f = frame
+	local shown = #keys > 0
+	local keyOf = filter
+	local list = shown and { "all" } or {}
+	for _, k in ipairs(keys) do list[#list + 1] = k end
+	for i, key in ipairs(list) do
+		local b = f.subtabs[i]
+		if not b then
+			b = tabButton(f, 84, 18)
+			b:SetPoint("TOPLEFT", 12 + (i - 1) * 86, -54)
+			f.subtabs[i] = b
+		end
+		local icon, label
+		if key == "all" then
+			icon, label = (keyOf == "craft" and SECTION.craft.icon or GATHER_ICON), T("Усе")
+		elseif keyOf == "craft" then
+			icon, label = professionIcon(key), professionLabel(key)
+		else
+			icon, label = SECTION[key].icon, T(GATHER_LABEL[key])
+		end
+		b.icon:SetTexture(icon)
+		b:SetText(label)
+		b:SetScript("OnClick", function() sub[keyOf] = key; ns.Refresh() end)
+		if sub[keyOf] == key then b:LockHighlight() else b:UnlockHighlight() end
+		b:Show()
+	end
+	for i = #list + 1, #f.subtabs do f.subtabs[i]:Hide() end
+	f.scroll:ClearAllPoints()
+	f.scroll:SetPoint("TOPLEFT", 10, shown and -78 or -58)
+	f.scroll:SetPoint("BOTTOMRIGHT", -32, 30)
+end
 
 local function create()
 	local f = CreateFrame("Frame", "WhatToDoFrame", UIParent, "BasicFrameTemplateWithInset")
@@ -266,35 +439,20 @@ local function create()
 	f.titleText = title
 
 	f.tabs = {}
-	local function tab(key, label, x)
-		local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-		b:SetSize(82, 22)
-		b:SetPoint("TOPLEFT", x, -30)
-		b.label = label
-		b:SetNormalFontObject("GameFontNormalSmall")
-		b:SetHighlightFontObject("GameFontHighlightSmall")
-		b:SetText(label)
-		local icon = b:CreateTexture(nil, "OVERLAY")
-		icon:SetSize(12, 12)
-		icon:SetPoint("LEFT", 6, -1)
-		icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-		icon:SetTexture(key == "all" and ALL_ICON or SECTION[key].icon)
-		local text = b:GetFontString()
-		if text then
-			text:ClearAllPoints()
-			text:SetPoint("LEFT", icon, "RIGHT", 3, 0)
-			text:SetPoint("RIGHT", -4, 0)
-			text:SetJustifyH("LEFT")
-			text:SetWordWrap(false)
-		end
-		b:SetScript("OnClick", function() filter = key; ns.Refresh() end)
-		f.tabs[key] = b
-	end
 	local TABS = {
-		{ "all", "Усе" }, { "craft", "Рекрафт" }, { "farm", "Моби" }, { "mining", "Майнінг" },
-		{ "herbalism", "Трави" }, { "skinning", "Скінінг" }, { "fishing", "Риболовля" },
+		{ "all", "Загальне", ALL_ICON }, { "zones", "По зонах", SECTION.zone.icon }, { "craft", "Рекрафт", SECTION.craft.icon },
+		{ "farm", "Моби", SECTION.farm.icon }, { "gather", "Ресурси", GATHER_ICON },
 	}
-	for i, t in ipairs(TABS) do tab(t[1], t[2], 12 + (i - 1) * 86) end
+	for i, t in ipairs(TABS) do
+		local b = tabButton(f, 100, 22)
+		b:SetPoint("TOPLEFT", 12 + (i - 1) * 104, -30)
+		b.label = t[2]
+		b.icon:SetTexture(t[3])
+		b:SetText(T(t[2]))
+		b:SetScript("OnClick", function() filter = t[1]; ns.Refresh() end)
+		f.tabs[t[1]] = b
+	end
+	f.subtabs = {}
 
 	local refresh = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	refresh:SetSize(90, 22)
@@ -317,6 +475,7 @@ local function create()
 	help:SetScript("OnClick", function() ns.ShowGuide() end)
 
 	local scroll = CreateFrame("ScrollFrame", "WhatToDoScroll", f, "UIPanelScrollFrameTemplate")
+	f.scroll = scroll
 	scroll:SetPoint("TOPLEFT", 10, -58)
 	scroll:SetPoint("BOTTOMRIGHT", -32, 30)
 	local content = CreateFrame("Frame", nil, scroll)

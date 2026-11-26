@@ -518,6 +518,7 @@ function ns.FarmActivities()
 						title = title,
 						mapID = s.mapID,
 						subzone = s.subzone,
+						zone = zone,
 						perHour = v.range and v.range.p50 or v.rate,
 						expectedPerHour = v.expected * 3600 / s.seconds,
 						corrected = not v.range and math.abs(v.value - v.expected) >= 1,

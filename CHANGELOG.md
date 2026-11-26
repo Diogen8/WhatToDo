@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.0
+- New tabs: Overview, By zone, Recraft, Mobs, Resources.
+  - Recraft has a second row of tabs, one per profession (essence conversions under Enchanting, smelting as Smelting).
+  - Resources has a second row: All, Mining, Herbs, Skinning, Fishing.
+  - By zone: one row per zone with mob farming and gathering added up per spot (you mine and skin while you kill); the row shows the zone's best spot, its activities as icons, the tooltip every spot. A click opens the map there.
+
 ## 0.18.0
 - Small samples no longer top the list on luck. Under an hour of data on a spot, the forecast leans on the typical rate of the same activity at your other spots (12 minutes: 20% the spot's own, 80% typical; at an hour, all its own), and a rare drop seen once or twice there (a gem from a node) counts at its usual chance per gather or kill. The tooltip shows the split.
 
