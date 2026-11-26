@@ -167,6 +167,7 @@ local function rowTooltip(row)
 		GameTooltip:AddLine(T("Клік - показати на мапі"), 0.4, 0.8, 1, true)
 	end
 	if a.product then
+		GameTooltip:AddLine(T("ПКМ - список покупок в Auctionator"), 0.4, 0.8, 1, true)
 		GameTooltip:AddLine(a.kind == "learn" and T("Клік - що потрібно для рецепта") or T("Клік - відкрити рецепт у професії"), 0.4, 0.8, 1, true)
 	end
 	GameTooltip:Show()
@@ -218,9 +219,11 @@ local function makeRow(parent)
 	r.detail:SetWordWrap(false)
 	r.detail:SetTextColor(0.75, 0.75, 0.75)
 	r:SetScript("OnEnter", rowTooltip)
-	r:SetScript("OnClick", function(self)
+	r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	r:SetScript("OnClick", function(self, button)
 		local a = self.activity
 		if not a then return end
+		if button == "RightButton" and a.product then ns.MakeShoppingList(a) return end
 		if a.product then ns.OpenRecipe(a) elseif a.mapID then ns.ShowSpotOnMap(a) end
 	end)
 	r:SetScript("OnLeave", function() GameTooltip:Hide() end)

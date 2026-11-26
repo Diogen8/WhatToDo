@@ -81,6 +81,7 @@ WhatToDo підказує, чим зараз найвигідніше зайня
 Вкладки: Усе, Рекрафт, Моби, Майнінг, Трави, Скінінг, Риболовля.
 У рядку: золото за годину, коротко деталі, справа довіра до поради. Наведіть мишку, щоб побачити повний розрахунок.
 - РЕКРАФТ: що ваші персонажі можуть скрафтити вже зараз. Клік відкриває рецепт у професії.
+  Правий клік - список покупок в Auctionator на партію (лише те, чого ще нема в сумках і банках персонажів).
 - РЕКРАФТ: ЯКЩО ВИВЧИТИ: для персонажів з вільним слотом професії, з потрібним рівнем навички.
 - ФАРМ і збір: місця з вашої історії Yield, лут за сьогоднішніми цінами.
 
@@ -191,6 +192,7 @@ Both are optional, but without them the matching sections stay empty.
 Tabs: All, Recraft, Mobs, Mining, Herbs, Skinning, Fishing.
 Each row: gold per hour, short details, and the trust in the suggestion on the right. Hover for the full calculation.
 - RECRAFT: what your characters can craft right now. Click to open the recipe.
+  Right-click - an Auctionator shopping list for the batch (only what your characters' bags and banks don't hold yet).
 - RECRAFT: IF LEARNED: for characters with a free profession slot, with the skill level needed.
 - FARMING and gathering: spots from your Yield history, loot at today's prices.
 

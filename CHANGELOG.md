@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0
+- Right-click a recraft row: an Auctionator shopping list for the batch, with what's still to buy and the most worth paying for each (the price now plus a quarter, never more than a craft's whole profit).
+- Owned materials count: every character's bags (and bank, once opened) are remembered; a recraft uses them first at what they'd fetch, buys only the rest, and the tooltip says who has them.
+- Small samples with no other spot of the same activity to compare with lean on half the spot's own rate.
+- Trust model, stage 3: model 2 (logistic regression on your own outcomes) switches on at 50 closed batches (recraft) or checked sessions (farming); recraft shows its chance, farming the mean of both. `/wtd results` adds the calibration: what model 1 predicted vs what happened, and both models' error on the newest outcomes.
+
 ## 0.20.0
 - A click on a farming, gathering or zone row also highlights the spot on the map: the subzone's own shape (its explored-map overlay) in yellow, and a soft ellipse over where you actually looted (WhatToDo now also notes how spread out your loot points are). The highlight goes when the map closes or shows another zone.
 - "Recraft (AFK)" is just "Recraft"; an empty group isn't shown at all.

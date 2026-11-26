@@ -19,21 +19,53 @@ local function evaluate(entry)
 	local expectedRevenue = net * made
 	local revenue = expectedRevenue * sellFactor
 
-	local cost, expectedCost, supply, parts = 0, 0, math.huge, {}
+	-- every reagent: what buying costs, what's listed, and what the characters already own (Inventory.lua)
+	local supply, reagents = math.huge, {}
 	for _, rg in ipairs(r.reagents) do
 		local id, count = rg[1], rg[2]
 		local unit, source, rAge = ns.BuyCost(id)
-		if not unit then return nil, T("немає ціни реагенту ") .. ns.ItemName(id) .. T(" (ні аукціон, ні вендор)") end
-		local buyFactor = 1
-		if source == "AH" then
-			if (rAge or math.huge) > maxAge then return nil, string.format(T("ціна реагенту %s застаріла: %s дн."), ns.ItemName(id), rAge and tostring(rAge) or ">21") end
-			buyFactor = ns.BuyFactor(id)
-			local listed = ns.Available(id)
-			if listed then supply = math.min(supply, math.floor(listed * ns.Setting("supplyShare") / count)) end
+		local own = ns.Owned and ns.Owned(id) or 0
+		if not unit and own < count then return nil, T("немає ціни реагенту ") .. ns.ItemName(id) .. T(" (ні аукціон, ні вендор)") end
+		local buyFactor, canBuy = 1, math.huge
+		if unit and source == "AH" then
+			if (rAge or math.huge) > maxAge then
+				if own < count then return nil, string.format(T("ціна реагенту %s застаріла: %s дн."), ns.ItemName(id), rAge and tostring(rAge) or ">21") end
+				unit, canBuy = nil, 0 -- a stale price: only what's owned is used
+			else
+				buyFactor = ns.BuyFactor(id)
+				local listed = ns.Available(id)
+				if listed then canBuy = listed * ns.Setting("supplyShare") end
+			end
+		elseif not unit then
+			canBuy = 0
 		end
-		expectedCost = expectedCost + unit * count
-		cost = cost + unit * buyFactor * count
-		parts[#parts + 1] = { id = id, count = count, unit = unit * buyFactor, source = source, factor = buyFactor }
+		supply = math.min(supply, math.floor((canBuy + own) / count))
+		reagents[#reagents + 1] = { id = id, count = count, unit = unit, source = source, factor = buyFactor, own = own }
+	end
+
+	local crafts = math.min(ns.Setting("maxBatch"), supply)
+	if crafts < 1 then return nil, T("на аукціоні замало реагентів для хоча б одного крафту") end
+	-- no bigger than the market takes in the 2 days a batch has
+	local cap = ns.DemandCap and ns.DemandCap(r.product, made)
+	local capped = cap and crafts > cap
+	if capped then crafts = cap end
+
+	-- cost per craft: owned units at what they'd fetch (sold on the AH, else to a vendor), the rest bought
+	local cost, expectedCost, parts = 0, 0, {}
+	for _, rg in ipairs(reagents) do
+		local need = rg.count * crafts
+		local useOwn = math.min(rg.own, need)
+		local buy = need - useOwn
+		local ownUnit = 0
+		if useOwn > 0 then
+			ownUnit = ns.SellNet(rg.id) or select(11, (C_Item and C_Item.GetItemInfo or GetItemInfo)(rg.id)) or 0
+		end
+		local buyUnit = (rg.unit or 0) * rg.factor
+		local per = (useOwn * ownUnit + buy * buyUnit) / crafts
+		cost = cost + per
+		expectedCost = expectedCost + (useOwn * ownUnit + buy * (rg.unit or 0)) / crafts
+		parts[#parts + 1] = { id = rg.id, count = rg.count, unit = per / rg.count, source = buy > 0 and rg.source or "own", factor = rg.factor,
+			own = rg.own, useOwn = useOwn, buy = buy, buyUnit = buyUnit, ahPart = (rg.source == "AH") and buy * buyUnit / crafts or 0 }
 	end
 
 	-- trust in the prices: the stalest AH price among the product and the AH-bought reagents
@@ -53,12 +85,6 @@ local function evaluate(entry)
 	local profit = revenue - cost
 	if profit < ns.Setting("minProfit") then return nil, string.format(T("прибуток за крафт %s < мінімуму %s (продаж %s, реагенти %s)"), ns.Coin(profit), ns.Coin(ns.Setting("minProfit")), ns.Coin(revenue), ns.Coin(cost)) end
 
-	local crafts = math.min(ns.Setting("maxBatch"), supply)
-	if crafts < 1 then return nil, T("на аукціоні замало реагентів для хоча б одного крафту") end
-	-- no bigger than the market takes in the 2 days a batch has
-	local cap = ns.DemandCap and ns.DemandCap(r.product, made)
-	local capped = cap and crafts > cap
-	if capped then crafts = cap end
 	local castSeconds = (r.castMs and r.castMs > 0) and (r.castMs / 1000) or (r.castMs == 0 and 0 or ns.Setting("craftSeconds"))
 	local estimatedPerCraft = castSeconds + ns.Setting("craftOverhead")
 	local measured = ns.CraftSeconds(r.product)
@@ -74,9 +100,7 @@ local function evaluate(entry)
 	local sim
 	if ns.SimulateCraft then
 		local ahCost = 0
-		for _, p in ipairs(parts) do
-			if p.source == "AH" then ahCost = ahCost + p.unit * p.count end
-		end
+		for _, p in ipairs(parts) do ahCost = ahCost + p.ahPart end
 		local vendor = select(11, (C_Item and C_Item.GetItemInfo or GetItemInfo)(r.product)) or 0
 		sim = ns.SimulateCraft({
 			product = r.product, crafts = crafts, made = made, net = net, vendor = vendor,
@@ -84,6 +108,10 @@ local function evaluate(entry)
 			activeSeconds = seconds, priceHours = stalestHours, capped = capped,
 		})
 	end
+
+	-- model 2 (Model2.lua): once there are enough closed batches, the chance learned from how model 1 did
+	local p2, n2
+	if sim and ns.Model2Craft then p2, n2 = ns.Model2Craft(sim.success, stalestHours ~= math.huge and stalestHours or nil, r.product, crafts) end
 
 	if sim and sim.p90 <= 0 then
 		return nil, string.format(T("модель: навіть оптимістичний сценарій у мінусі (%s - %s/год, у плюс %d%%)"),
@@ -105,7 +133,12 @@ local function evaluate(entry)
 	if sim then
 		tip[#tip + 1] = { T("Діапазон (8 з 10 випадків)"), ns.Coin(sim.p10) .. " - " .. ns.Coin(sim.p90) .. T("/год") }
 		tip[#tip + 1] = { T("Найімовірніше"), ns.Coin(sim.p50) .. T("/год") }
-		tip[#tip + 1] = { T("У плюс"), string.format("%d%%", math.floor(sim.success * 100 + 0.5)) }
+		tip[#tip + 1] = { T("У плюс"), string.format("%d%%", math.floor((p2 or sim.success) * 100 + 0.5)) }
+		if p2 then
+			tip[#tip + 1] = { T("  модель 1 / модель 2"), string.format(T("%d%% / %d%% (з %d партій)"), math.floor(sim.success * 100 + 0.5), math.floor(p2 * 100 + 0.5), n2) }
+		elseif ns.MODEL2_MIN then
+			tip[#tip + 1] = { T("  модель 2"), string.format(T("з %d закритих партій (зараз %d)"), ns.MODEL2_MIN, n2 or 0) }
+		end
 		tip[#tip + 1] = { T("Прибуток партії"), ns.Coin(sim.profit10) .. " - " .. ns.Coin(sim.profit90) }
 		tip[#tip + 1] = { T("Гроші повернуться"), string.format(T("за ~%s"), ns.AgeText(sim.model.waitHours)) }
 		tip[#tip + 1] = { T("Група"), ns.GroupName(sim.model.group) .. ((sim.model.events or 0) > 0 and string.format(T(", продажів у моделі: %s"), tostring(math.floor(sim.model.events + 0.5))) or "") }
@@ -118,7 +151,11 @@ local function evaluate(entry)
 	}) do tip[#tip + 1] = line end
 	for _, p in ipairs(parts) do
 		local fText = p.factor and ns.FactorText(p.factor)
-		tip[#tip + 1] = { string.format("  %dx %s", p.count, ns.ItemName(p.id)), string.format("-%s (%s%s)", ns.Coin(p.unit * p.count), p.source == "AH" and T("аукціон") or T("вендор"), fText and (T(", факт ") .. fText) or "") }
+		local from = p.source == "own" and T("своє") or p.source == "AH" and T("аукціон") or T("вендор")
+		tip[#tip + 1] = { string.format("  %dx %s", p.count, ns.ItemName(p.id)), string.format("-%s (%s%s)", ns.Coin(p.unit * p.count), from, fText and (T(", факт ") .. fText) or "") }
+		if p.own > 0 then
+			tip[#tip + 1] = { "     " .. string.format(T("є %d: %s"), p.own, ns.OwnedWhere(p.id)), p.buy > 0 and string.format(T("докупити %d"), p.buy) or T("вистачає") }
+		end
 	end
 	tip[#tip + 1] = { T("Прибуток за крафт"), ns.Coin(profit) }
 	tip[#tip + 1] = { T("Маржа"), string.format("%.0f%%", cost > 0 and profit / cost * 100 or 0) }
@@ -160,7 +197,8 @@ local function evaluate(entry)
 		profit = profit,
 		crafts = crafts,
 		product = r.product,
-		trust = sim and sim.success or trust,
+		trust = sim and (p2 or sim.success) or trust,
+		p1 = sim and sim.success or nil,
 		range = sim and { sim.p10, sim.p50, sim.p90 } or nil,
 		rawPerHour = perHour,
 		priceTrust = priceTrust,
@@ -170,6 +208,17 @@ local function evaluate(entry)
 		need = need,
 		conversion = r.profession == "Essences",
 		profession = r.profession,
+		shopping = (function()
+			-- what to buy for the batch, with the most worth paying: the price now plus a quarter, and never
+			-- more than the whole profit of a craft spent on that one reagent
+			local list = {}
+			for _, p in ipairs(parts) do
+				if p.buy > 0 and p.source == "AH" then
+					list[#list + 1] = { id = p.id, quantity = p.buy, maxPrice = math.floor(math.min(p.buyUnit * 1.25, p.buyUnit + profit / p.count)) }
+				end
+			end
+			return list
+		end)(),
 	}
 end
 

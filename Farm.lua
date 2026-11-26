@@ -423,13 +423,19 @@ function ns.FarmActivities()
 				-- (12 minutes of data: 20% own, 80% typical), reaching the spot's own rate at an hour
 				local ownRate, rate = total * 3600 / s.seconds, total * 3600 / s.seconds
 				local otherSeconds = p and (p.seconds - s.seconds) or 0
-				if s.seconds < 3600 and otherSeconds >= 600 then
-					local typical = (p.value - ns.CategoryValue(c, cache)) * 3600 / otherSeconds
+				if s.seconds < 3600 then
 					local w = s.seconds / 3600
+					local typical, guessed
+					if otherSeconds >= 600 then
+						typical = (p.value - ns.CategoryValue(c, cache)) * 3600 / otherSeconds
+					else -- nothing to compare with: short samples tend to be lucky, so lean on half the spot's own rate
+						typical, guessed = ownRate * 0.5, true
+					end
 					rate = w * ownRate + (1 - w) * math.max(typical, 0)
-					v.ownRate, v.typicalRate, v.ownWeight = ownRate, typical, w
+					v.ownRate, v.typicalRate, v.ownWeight, v.guessedTypical = ownRate, typical, w, guessed
 				end
 				v.rate = rate
+				if ns.Model2Farm then v.p2, v.n2 = ns.Model2Farm(s.seconds / 3600, cat ~= "farm") end
 				if ns.FarmRange and total > 0 then
 					v.range = ns.FarmRange(rate, s.seconds / 3600, ahValue > 0 and ahHours / ahValue or nil,
 						ahValue / total, gearValue / total, cat ~= "farm")
@@ -490,11 +496,18 @@ function ns.FarmActivities()
 					if v.range then
 						tip[#tip + 1] = { " ", " " }
 						tip[#tip + 1] = { T("Наступна сесія (8 з 10 випадків)"), ns.Coin(v.range.p10) .. " - " .. ns.Coin(v.range.p90) .. T("/год") }
-						tip[#tip + 1] = { T("Не менше половини прогнозу"), string.format("%d%%", math.floor(v.range.success * 100 + 0.5)) }
+						tip[#tip + 1] = { T("Не менше половини прогнозу"), string.format("%d%%", math.floor((v.p2 and (v.range.success + v.p2) / 2 or v.range.success) * 100 + 0.5)) }
+						if v.p2 then
+							tip[#tip + 1] = { T("  модель 1 / модель 2"), string.format(T("%d%% / %d%% (з %d сесій)"), math.floor(v.range.success * 100 + 0.5), math.floor(v.p2 * 100 + 0.5), v.n2) }
+						end
 						if v.ownWeight then
 							tip[#tip + 1] = { T("Мала вибірка"), string.format(T("%d%% ваші дані тут, %d%% типове"), math.floor(v.ownWeight * 100 + 0.5), math.floor((1 - v.ownWeight) * 100 + 0.5)) }
 							tip[#tip + 1] = { T("  тут за вашими даними"), ns.Coin(v.ownRate) .. T("/год") }
-							tip[#tip + 1] = { string.format(T("  типово (%s в інших місцях)"), T(CAT_NAME[cat] or cat)), ns.Coin(v.typicalRate) .. T("/год") }
+							if v.guessedTypical then
+								tip[#tip + 1] = { T("  інших місць ще нема: половина своїх"), ns.Coin(v.typicalRate) .. T("/год") }
+							else
+								tip[#tip + 1] = { string.format(T("  типово (%s в інших місцях)"), T(CAT_NAME[cat] or cat)), ns.Coin(v.typicalRate) .. T("/год") }
+							end
 						end
 						for i, d in ipairs(v.range.drivers) do tip[#tip + 1] = { i == 1 and T("Невизначеність") or " ", d } end
 					end
@@ -529,7 +542,7 @@ function ns.FarmActivities()
 						detail = detail,
 						tooltip = tip,
 						confidence = math.min(1, s.seconds / 3600), -- an hour of data counts as solid
-						trust = v.range and v.range.success or v.trust,
+						trust = v.range and (v.p2 and (v.range.success + v.p2) / 2 or v.range.success) or v.trust,
 						priceTrust = v.priceTrust,
 					}
 				end

@@ -140,7 +140,7 @@ end
 local function forecastFor(product)
 	for _, a in ipairs(ns.Rank("craft")) do
 		if a.product == product then
-			return { perHour = a.perHour, profit = a.profit, crafts = a.crafts, trust = a.trust,
+			return { perHour = a.perHour, profit = a.profit, crafts = a.crafts, trust = a.trust, p1 = a.p1,
 				priceTrust = a.priceTrust, priceHours = a.trustHours ~= math.huge and a.trustHours or nil }
 		end
 	end
@@ -395,4 +395,5 @@ function ns.ResultsReport()
 		print(string.format(T("  %s (%s): факт %s/год, прогноз %s/год - %s"), zone, T(CAT_LABEL[r.cat] or r.cat),
 			ns.Coin(r.actual), ns.Coin(r.forecast), r.success and T("|cff66ff66справдилось|r") or T("|cffff6666ні|r")))
 	end
+	if ns.CalibrationReport then ns.CalibrationReport() end
 end
