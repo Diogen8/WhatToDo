@@ -59,6 +59,7 @@ local function evaluate(entry)
 	local need = (r.profession and r.skill) and string.format("%s %d", r.profession, r.skill) or (r.profession or "без професії")
 	local listedProduct = ns.Available(r.product)
 	local tip = {
+		{ "Рецепт", table.concat(inputs, " + ") },
 		{ "Продаж" .. madeText, ns.Coin(gross * made) .. "  (чисто " .. ns.Coin(revenue) .. ")" },
 	}
 	for _, p in ipairs(parts) do
@@ -84,11 +85,11 @@ local function evaluate(entry)
 	tip[#tip + 1] = { "Ціни сканувались", (age == 0) and "сьогодні" or string.format("%d дн. тому", age or 0) }
 	tip[#tip + 1] = { entry.section == "learn" and "Вивчити" or "Професія", need }
 	tip[#tip + 1] = { entry.section == "learn" and "Вільний слот у" or "Хто може", who }
-	if r.catalog then tip[#tip + 1] = { "Рецепт", "з каталогу (у тренера)" } end
+	if r.catalog then tip[#tip + 1] = { "Джерело рецепта", "каталог (у тренера)" } end
 
 	return {
 		kind = entry.section or "craft",
-		title = table.concat(inputs, " + ") .. "  >>  " .. productName .. madeText,
+		title = productName .. madeText,
 		perHour = perHour,
 		expectedPerHour = expectedPerHour,
 		corrected = (sellFactor ~= 1) or (cost ~= expectedCost) or (measured ~= nil),
