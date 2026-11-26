@@ -71,6 +71,7 @@ events:SetScript("OnEvent", function(self, event, name)
 		WhatToDoDB = type(WhatToDoDB) == "table" and WhatToDoDB or {}
 		WhatToDoDB.settings = WhatToDoDB.settings or {}
 		WhatToDoDB.recipes = WhatToDoDB.recipes or {}
+		WhatToDoDB.chars = WhatToDoDB.chars or {}
 		WhatToDoDB.version = 1
 		copyDefaults(WhatToDoDB.settings, {}) -- defaults stay in ns.DEFAULTS; only changed values are saved
 		self:UnregisterEvent("ADDON_LOADED")
@@ -78,14 +79,17 @@ events:SetScript("OnEvent", function(self, event, name)
 	end
 end)
 
--- All activities, best first. filter: nil/"all", "farm" or "craft".
+-- All activities of one kind ("farm", "craft" or "learn"), or of every kind (nil / "all"), best first.
 function ns.Rank(filter)
 	local list = {}
-	if filter ~= "craft" and ns.FarmActivities then
+	local all = (filter == nil or filter == "all")
+	if (all or filter == "farm") and ns.FarmActivities then
 		for _, a in ipairs(ns.FarmActivities()) do list[#list + 1] = a end
 	end
-	if filter ~= "farm" and ns.CraftActivities then
-		for _, a in ipairs(ns.CraftActivities()) do list[#list + 1] = a end
+	if (all or filter == "craft" or filter == "learn") and ns.CraftActivities then
+		for _, a in ipairs(ns.CraftActivities()) do
+			if all or a.kind == filter then list[#list + 1] = a end
+		end
 	end
 	table.sort(list, function(a, b) return a.perHour > b.perHour end)
 	return list

@@ -1,6 +1,6 @@
 -- Recipes: what each character can craft, read from the trade skill window whenever it's open, and kept
--- in WhatToDoDB.recipes[char][profession][recipeName]. Only the logged-in character's recipes, in
--- professions it still has, are offered (ns.AllRecipes).
+-- in WhatToDoDB.recipes[char][profession][recipeName]. Every character's recipes count, in professions it
+-- still has; the built-in catalog (Catalog.lua) fills in what their ranks reach and what they could learn.
 -- Recipes under a collapsed header aren't listed by the game, so only expanded ones are recorded; known
 -- ones are never dropped by a later, partial scan.
 -- Enchanting (the Craft window) makes no items and isn't read.
@@ -107,56 +107,142 @@ f:SetScript("OnEvent", scheduleScan)
 -- The trade skill window's name for a profession, when it isn't the skill's own (Mining opens "Smelting").
 local WINDOW_TO_SKILL = { Smelting = "Mining" }
 
--- The current character's professions from the skill list, or nil when the list can't say for sure
--- (no API, or a collapsed header hiding some lines - then nothing is filtered rather than everything).
-function ns.CurrentProfessions()
-	if not (GetNumSkillLines and GetSkillLineInfo) then return nil end
-	local set, seen = {}, 0
+---------------------------------------------------------------------------
+-- Characters' professions: read from the skill list on login and whenever it changes, kept in
+-- WhatToDoDB.chars[charKey] = { name, professions = { [skillName] = rank }, updated } so alts count while
+-- logged out. A collapsed header hides lines: then what's seen is merged in and nothing is dropped.
+---------------------------------------------------------------------------
+
+local function recordSkills()
+	if not (WhatToDoDB and GetNumSkillLines and GetSkillLineInfo) then return end
+	local seen, complete = {}, true
 	for i = 1, GetNumSkillLines() or 0 do
-		local name, isHeader, isExpanded = GetSkillLineInfo(i)
-		if isHeader and not isExpanded then return nil end
-		if name and not isHeader then set[name] = true; seen = seen + 1 end
+		local name, isHeader, isExpanded, rank = GetSkillLineInfo(i)
+		if isHeader and not isExpanded then complete = false end
+		if name and not isHeader and (ns.PRIMARY[name] or ns.SECONDARY[name]) then seen[name] = rank or 0 end
 	end
-	return seen > 0 and set or nil
-end
-
-local function hasProfession(current, profession)
-	if not current then return true end
-	return current[profession] or current[WINDOW_TO_SKILL[profession] or profession] or false
-end
-
--- The recipes the current character can craft now: its recorded professions that it still has,
--- plus the profession-free essence conversions (setting "essences"). { recipe, who = { name } } each.
-function ns.AllRecipes()
-	local out = {}
-	if ns.Setting("essences") == 1 then
-		for _, r in ipairs(ns.CONVERSIONS) do out[#out + 1] = { recipe = r, who = {} } end
+	WhatToDoDB.chars = WhatToDoDB.chars or {}
+	local key = ns.CharKey()
+	local c = WhatToDoDB.chars[key] or {}
+	WhatToDoDB.chars[key] = c
+	c.name = UnitName("player")
+	if complete then
+		c.professions = seen
+	else
+		c.professions = c.professions or {}
+		for name, rank in pairs(seen) do c.professions[name] = rank end
 	end
-	local charKey = ns.CharKey()
-	local professions = (WhatToDoDB and WhatToDoDB.recipes and WhatToDoDB.recipes[charKey]) or {}
-	local current = ns.CurrentProfessions()
-	local charName = charKey:match("^([^-]+)") or charKey
-	for profession, recipes in pairs(professions) do
-		if type(recipes) == "table" and hasProfession(current, profession) then
-			for name, r in pairs(recipes) do
-				r.name, r.profession = name, profession
-				out[#out + 1] = { recipe = r, who = { profession } }
+	c.updated = time()
+	-- a profession dropped: its recorded recipes go too
+	if complete and WhatToDoDB.recipes[key] then
+		for profession in pairs(WhatToDoDB.recipes[key]) do
+			if profession ~= "_scanned" and not seen[WINDOW_TO_SKILL[profession] or profession] then
+				WhatToDoDB.recipes[key][profession] = nil
 			end
 		end
 	end
-	return out
 end
 
--- Recipes counted for the status line: the current character's, in professions it still has.
-function ns.RecipeCount()
-	local count, professions = 0, 0
-	local current = ns.CurrentProfessions()
-	local mine = (WhatToDoDB and WhatToDoDB.recipes and WhatToDoDB.recipes[ns.CharKey()]) or {}
-	for profession, list in pairs(mine) do
-		if type(list) == "table" and hasProfession(current, profession) then
-			professions = professions + 1
-			for _ in pairs(list) do count = count + 1 end
+local skillsScheduled = false
+local sk = CreateFrame("Frame")
+sk:RegisterEvent("PLAYER_ENTERING_WORLD")
+sk:RegisterEvent("SKILL_LINES_CHANGED")
+sk:SetScript("OnEvent", function()
+	if skillsScheduled then return end
+	skillsScheduled = true
+	C_Timer.After(1, function()
+		skillsScheduled = false
+		recordSkills()
+	end)
+end)
+
+local function shortName(charKey)
+	local c = WhatToDoDB.chars and WhatToDoDB.chars[charKey]
+	return (c and c.name) or charKey:match("^([^-]+)") or charKey
+end
+
+local function primaryCount(professions)
+	local n = 0
+	for name in pairs(professions) do
+		if ns.PRIMARY[name] then n = n + 1 end
+	end
+	return n
+end
+
+---------------------------------------------------------------------------
+-- Every recrafting option, merged by what it uses and makes:
+--   { recipe, section = "craft" | "learn", who = { "Name" or "Name (Profession)" , ... } }
+-- craft: essence conversions; each character's scanned recipes in professions it still has; catalog recipes
+--        its rank already reaches.
+-- learn: catalog recipes in professions a character with a free primary slot doesn't have.
+---------------------------------------------------------------------------
+
+function ns.AllRecipes()
+	local merged, order = {}, {}
+	local function add(r, section, who)
+		local parts = { section, r.product, string.format("%g", r.made or 1) }
+		for _, rg in ipairs(r.reagents) do parts[#parts + 1] = rg[1] .. "x" .. rg[2] end
+		local key = table.concat(parts, ":")
+		local entry = merged[key]
+		if not entry then
+			entry = { recipe = r, section = section, who = {}, seen = {} }
+			merged[key] = entry
+			order[#order + 1] = entry
+		elseif r.catalog == nil and entry.recipe.catalog then
+			entry.recipe = r -- a scanned recipe knows its real cast time and yield
+		end
+		if who and not entry.seen[who] then
+			entry.seen[who] = true
+			entry.who[#entry.who + 1] = who
 		end
 	end
-	return count, professions
+
+	if ns.Setting("essences") == 1 then
+		for _, r in ipairs(ns.CONVERSIONS) do add(r, "craft", nil) end
+	end
+	if not WhatToDoDB then return order end
+	local chars = WhatToDoDB.chars or {}
+
+	-- scanned recipes (characters whose professions were never read keep all of theirs)
+	for charKey, professions in pairs(WhatToDoDB.recipes or {}) do
+		local known = chars[charKey] and chars[charKey].professions
+		for profession, recipes in pairs(professions) do
+			local skill = WINDOW_TO_SKILL[profession] or profession
+			if type(recipes) == "table" and (not known or known[skill]) then
+				for name, r in pairs(recipes) do
+					r.name, r.profession = name, skill
+					add(r, "craft", shortName(charKey))
+				end
+			end
+		end
+	end
+
+	-- catalog: what each character's ranks reach, and what free slots could learn
+	for charKey, c in pairs(chars) do
+		local professions = c.professions or {}
+		local free = primaryCount(professions) < 2
+		for _, r in ipairs(ns.CATALOG) do
+			local rank = professions[r.profession]
+			if rank then
+				if rank >= r.skill then add(r, "craft", shortName(charKey)) end
+			elseif free then
+				add(r, "learn", shortName(charKey))
+			end
+		end
+	end
+	return order
+end
+
+-- For the status line: scanned recipes and characters with known professions.
+function ns.RecipeCount()
+	local count, chars = 0, 0
+	for _, professions in pairs((WhatToDoDB and WhatToDoDB.recipes) or {}) do
+		for _, list in pairs(professions) do
+			if type(list) == "table" then
+				for _ in pairs(list) do count = count + 1 end
+			end
+		end
+	end
+	for _ in pairs((WhatToDoDB and WhatToDoDB.chars) or {}) do chars = chars + 1 end
+	return count, chars
 end

@@ -44,7 +44,8 @@ local function evaluate(entry)
 	local inputs = {}
 	for _, p in ipairs(parts) do inputs[#inputs + 1] = string.format("%dx %s", p.count, ns.ItemName(p.id)) end
 
-	local who = (#entry.who > 0) and table.concat(entry.who, ", ") or "без професії"
+	local who = (#entry.who > 0) and table.concat(entry.who, ", ") or "будь-хто"
+	local need = (r.profession and r.skill) and string.format("%s %d", r.profession, r.skill) or (r.profession or "без професії")
 	local listedProduct = ns.Available(r.product)
 	local tip = {
 		{ "Продаж" .. madeText, ns.Coin(gross * made) .. "  (чисто " .. ns.Coin(revenue) .. ")" },
@@ -59,13 +60,17 @@ local function evaluate(entry)
 	tip[#tip + 1] = { "Прибуток партії", ns.Coin(profit * crafts) }
 	if listedProduct then tip[#tip + 1] = { "Конкуренти на аукціоні", tostring(listedProduct) .. " шт." } end
 	tip[#tip + 1] = { "Ціни сканувались", (age == 0) and "сьогодні" or string.format("%d дн. тому", age or 0) }
-	tip[#tip + 1] = { "Професія", who }
+	tip[#tip + 1] = { entry.section == "learn" and "Вивчити" or "Професія", need }
+	tip[#tip + 1] = { entry.section == "learn" and "Вільний слот у" or "Хто може", who }
+	if r.catalog then tip[#tip + 1] = { "Рецепт", "з каталогу (у тренера)" } end
 
 	return {
-		kind = "craft",
+		kind = entry.section or "craft",
 		title = table.concat(inputs, " + ") .. "  >>  " .. productName .. madeText,
 		perHour = perHour,
-		detail = string.format("%s за крафт · %d крафтів/партія · %s", ns.Coin(profit), crafts, who),
+		detail = entry.section == "learn"
+			and string.format("вивчити %s · %s за крафт · %s", need, ns.Coin(profit), who)
+			or string.format("%s за крафт · %d крафтів/партія · %s", ns.Coin(profit), crafts, who),
 		tooltip = tip,
 		profit = profit,
 		crafts = crafts,

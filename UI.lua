@@ -15,7 +15,7 @@ local function statusText(count)
 	parts[#parts + 1] = ns.HasAuctionator() and "Auctionator: є" or "|cffff6666Auctionator: немає|r"
 	parts[#parts + 1] = ns.HasYield() and "Yield: є" or "|cffff6666Yield: немає|r"
 	local recipes, chars = ns.RecipeCount()
-	parts[#parts + 1] = string.format("рецептів: %d (%d проф.)", recipes, chars)
+	parts[#parts + 1] = string.format("рецептів: %d · персонажів: %d", recipes, chars)
 	parts[#parts + 1] = string.format("варіантів: %d", count)
 	return table.concat(parts, "   ")
 end
@@ -43,9 +43,10 @@ local HEADER_HEIGHT = 26
 -- Each section's colour: the header text, its rule and a faint wash behind its rows.
 local SECTION = {
 	craft = { title = "РЕКРАФТ · АФК", note = "купити матеріали → скрафтити → продати", color = { 0.4, 0.67, 1 } },
+	learn = { title = "РЕКРАФТ · ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
 	farm = { title = "ФАРМ", note = "місця з історії Yield, лут за сьогоднішніми цінами", color = { 0.4, 0.8, 0.4 } },
 }
-local SECTION_ORDER = { "craft", "farm" }
+local SECTION_ORDER = { "craft", "learn", "farm" }
 
 local function makeRow(parent)
 	local r = CreateFrame("Button", nil, parent)
@@ -137,8 +138,8 @@ function ns.Refresh()
 		return r
 	end
 	for _, kind in ipairs(SECTION_ORDER) do
-		if filter == "all" or filter == kind then
-			local list = ns.Rank(kind)
+		local list = (filter == "all" or filter == kind or (filter == "craft" and kind == "learn")) and ns.Rank(kind)
+		if list and not (#list == 0 and SECTION[kind].hideEmpty) then
 			total = total + #list
 			if y > 0 then y = y + 8 end -- a gap between the sections
 			setHeader(nextRow(), kind, #list)
@@ -159,8 +160,8 @@ function ns.Refresh()
 end
 
 local EMPTY_TEXT = "Поки нічого порадити.\n\n" ..
-	"Рекрафт: проскануйте аукціон в Auctionator і відкрийте вікна професій цього персонажа,\n" ..
-	"щоб WhatToDo запам'ятав рецепти.\n" ..
+	"Рекрафт: проскануйте аукціон в Auctionator і зайдіть кожним персонажем хоч раз,\n" ..
+	"щоб WhatToDo запам'ятав їхні професії (вікна професій — для точних рецептів).\n" ..
 	"Фарм: увімкніть Yield і пофарміть хоча б 10 хв на одному місці."
 
 local function create()
@@ -258,8 +259,8 @@ local SETTING_HELP = {
 local function printTop(n)
 	for _, kind in ipairs(SECTION_ORDER) do
 		local list = ns.Rank(kind)
-		print("|cffffd100" .. SECTION[kind].title .. "|r")
-		if #list == 0 then print("  нічого вигідного") end
+		if not (#list == 0 and SECTION[kind].hideEmpty) then print("|cffffd100" .. SECTION[kind].title .. "|r") end
+		if #list == 0 and not SECTION[kind].hideEmpty then print("  нічого вигідного") end
 		for i = 1, math.min(n, #list) do
 			local a = list[i]
 			print(string.format("  %d. %s — %s/год", i, a.title, ns.Coin(a.perHour)))
@@ -292,7 +293,8 @@ SlashCmdList.WHATTODO = function(msg)
 		ns.Refresh()
 	elseif cmd == "forget" then
 		WhatToDoDB.recipes[ns.CharKey()] = nil
-		ns.Out("рецепти цього персонажа забуто; відкрийте вікна професій знову.")
+		WhatToDoDB.chars[ns.CharKey()] = nil
+		ns.Out("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій.")
 	else
 		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd reset · /wtd forget — забути рецепти персонажа")
 	end
