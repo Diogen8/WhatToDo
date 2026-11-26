@@ -20,7 +20,9 @@ ns.DEFAULTS = {
 	ahCut = 0.05,
 	results = 15,          -- rows per section
 	corrections = 1,       -- 1: correct estimates by the ledger (real sales, purchases, craft times)
-	essences = 1,          -- 1: include combining/splitting enchanting essences (no profession needed)
+	essences = 1,
+	minimapAngle = 200,    -- degrees around the minimap edge
+	minimapHide = 0,          -- 1: include combining/splitting enchanting essences (no profession needed)
 }
 
 local function copyDefaults(into, from)

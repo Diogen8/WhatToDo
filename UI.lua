@@ -304,6 +304,10 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.settings = {}
 		ns.Out("налаштування скинуто.")
 		ns.Refresh()
+	elseif cmd == "minimap" then
+		WhatToDoDB.settings.minimapHide = (ns.Setting("minimapHide") == 1) and 0 or 1
+		ns.UpdateMinimapButton()
+		ns.Out(ns.Setting("minimapHide") == 1 and "кнопку біля мінікарти сховано (/wtd minimap — повернути)." or "кнопку біля мінікарти показано.")
 	elseif cmd == "stats" then
 		ns.LedgerReport()
 	elseif cmd == "ledger" and rest == "reset" then
@@ -315,8 +319,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій.")
 	else
-		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd stats — факт продажів · /wtd reset · /wtd ledger reset · /wtd forget — забути рецепти персонажа")
+		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd minimap — сховати/показати кнопку · /wtd stats — факт продажів · /wtd reset · /wtd ledger reset · /wtd forget — забути рецепти персонажа")
 	end
 end
 
-function ns.OnLoad() end
