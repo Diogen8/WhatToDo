@@ -301,6 +301,10 @@ local EN = {
 	["%s: координати %.0f, %.0f."] = "%s: coordinates %.0f, %.0f.",
 	["%s: точку ще не знаю - вона з'явиться після першого лута там. Підзона: %s."] = "%s: no point known yet - it appears after your first loot there. Subzone: %s.",
 	["Клік - показати на мапі"] = "Click - show on the map",
+	["Мала вибірка"] = "Small sample",
+	["%d%% ваші дані тут, %d%% типове"] = "%d%% your data here, %d%% typical",
+	["  тут за вашими даними"] = "  here, by your data",
+	["  типово (%s в інших місцях)"] = "  typical (%s elsewhere)",
 }
 
 function ns.Lang()

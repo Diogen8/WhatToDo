@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.18.0
+- Small samples no longer top the list on luck. Under an hour of data on a spot, the forecast leans on the typical rate of the same activity at your other spots (12 minutes: 20% the spot's own, 80% typical; at an hour, all its own), and a rare drop seen once or twice there (a gem from a node) counts at its usual chance per gather or kill. The tooltip shows the split.
+
 ## 0.17.9
 - Status line: Auctionator and Yield are shown by name, green when loaded and red when not.
 

@@ -343,6 +343,22 @@ function ns.FarmActivities()
 	local yield, cache = yieldAddon(), {}
 	local minSeconds = ns.Setting("minFarmMinutes") * 60
 	local out = {}
+
+	-- Every category pooled over all spots, for small samples (under an hour on a spot):
+	--   the typical rate (value per second) a spot's own rate is pulled towards, and
+	--   each item's drops per gather/kill, so a lucky rare drop (a gem from a node) counts at its usual chance.
+	local pool = {}
+	for _, s in pairs(spots) do
+		for cat, c in pairs(s.cats) do
+			local p = pool[cat] or { seconds = 0, value = 0, count = 0, items = {} }
+			pool[cat] = p
+			p.seconds = p.seconds + s.seconds
+			p.value = p.value + ns.CategoryValue(c, cache)
+			p.count = p.count + (c.count or 0)
+			for itemID, n in pairs(c.items) do p.items[itemID] = (p.items[itemID] or 0) + n end
+		end
+	end
+
 	for _, s in pairs(spots) do
 		if s.seconds >= minSeconds then
 			local hours = s.seconds / 3600
@@ -356,12 +372,18 @@ function ns.FarmActivities()
 			local valued, spotTotal = {}, 0
 			for cat, c in pairs(s.cats) do
 				local itemValue, expectedItems, lines = 0, 0, {}
-				for itemID, count in pairs(c.items) do
+				local p = pool[cat]
+				local short = s.seconds < 3600 and c.count > 0 and p and p.count > c.count
+				for itemID, seen in pairs(c.items) do
+					local count = seen
+					if short and seen <= 2 then -- a rare drop on a short sample: its usual chance, never more than seen
+						count = math.min(seen, (p.items[itemID] or 0) / p.count * c.count)
+					end
 					local base = valueOf(itemID, yield, cache) * count
 					local factor = ns.SellFactor(itemID)
 					local v = base * factor
 					itemValue, expectedItems = itemValue + v, expectedItems + base
-					lines[#lines + 1] = { itemID = itemID, count = count, value = v, factor = factor }
+					lines[#lines + 1] = { itemID = itemID, count = seen, value = v, factor = factor }
 				end
 				table.sort(lines, function(a, b) return a.value > b.value end)
 				-- trust: each AH-priced item's price freshness, weighted by its share of the value; coin and
@@ -394,8 +416,19 @@ function ns.FarmActivities()
 				local v = { cat = cat, c = c, value = total, expected = c.money + expectedItems, itemValue = itemValue, lines = lines,
 					trust = ns.CombineTrust(priceTrust, evidence), priceTrust = priceTrust, evidence = evidence, realizedShare = realizedShare,
 					stalestHours = stalestItem and stalestHours or nil, stalestItem = stalestItem }
+				-- under an hour: the forecast leans on the typical rate of this kind of activity elsewhere
+				-- (12 minutes of data: 20% own, 80% typical), reaching the spot's own rate at an hour
+				local ownRate, rate = total * 3600 / s.seconds, total * 3600 / s.seconds
+				local otherSeconds = p and (p.seconds - s.seconds) or 0
+				if s.seconds < 3600 and otherSeconds >= 600 then
+					local typical = (p.value - ns.CategoryValue(c, cache)) * 3600 / otherSeconds
+					local w = s.seconds / 3600
+					rate = w * ownRate + (1 - w) * math.max(typical, 0)
+					v.ownRate, v.typicalRate, v.ownWeight = ownRate, typical, w
+				end
+				v.rate = rate
 				if ns.FarmRange and total > 0 then
-					v.range = ns.FarmRange(total * 3600 / s.seconds, s.seconds / 3600, ahValue > 0 and ahHours / ahValue or nil,
+					v.range = ns.FarmRange(rate, s.seconds / 3600, ahValue > 0 and ahHours / ahValue or nil,
 						ahValue / total, gearValue / total, cat ~= "farm")
 				end
 				valued[#valued + 1] = v
@@ -455,6 +488,11 @@ function ns.FarmActivities()
 						tip[#tip + 1] = { " ", " " }
 						tip[#tip + 1] = { T("Наступна сесія (8 з 10 випадків)"), ns.Coin(v.range.p10) .. " - " .. ns.Coin(v.range.p90) .. T("/год") }
 						tip[#tip + 1] = { T("Не менше половини прогнозу"), string.format("%d%%", math.floor(v.range.success * 100 + 0.5)) }
+						if v.ownWeight then
+							tip[#tip + 1] = { T("Мала вибірка"), string.format(T("%d%% ваші дані тут, %d%% типове"), math.floor(v.ownWeight * 100 + 0.5), math.floor((1 - v.ownWeight) * 100 + 0.5)) }
+							tip[#tip + 1] = { T("  тут за вашими даними"), ns.Coin(v.ownRate) .. T("/год") }
+							tip[#tip + 1] = { string.format(T("  типово (%s в інших місцях)"), T(CAT_NAME[cat] or cat)), ns.Coin(v.typicalRate) .. T("/год") }
+						end
 						for i, d in ipairs(v.range.drivers) do tip[#tip + 1] = { i == 1 and T("Невизначеність") or " ", d } end
 					end
 					if v.stalestItem then tip[#tip + 1] = { T("Найстаріша ціна"), string.format(T("%s, %s тому"), ns.ItemName(v.stalestItem), ns.AgeText(v.stalestHours)) } end
@@ -480,7 +518,7 @@ function ns.FarmActivities()
 						title = title,
 						mapID = s.mapID,
 						subzone = s.subzone,
-						perHour = v.range and v.range.p50 or v.value * 3600 / s.seconds,
+						perHour = v.range and v.range.p50 or v.rate,
 						expectedPerHour = v.expected * 3600 / s.seconds,
 						corrected = not v.range and math.abs(v.value - v.expected) >= 1,
 						range = v.range and { v.range.p10, v.range.p50, v.range.p90 } or nil,
