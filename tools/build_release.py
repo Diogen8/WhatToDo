@@ -1,5 +1,5 @@
 """Builds release/WhatToDo.zip (the addon folder only: the .toc and the files it lists, plus LICENSE)
-and release/VERSION (the .toc's version). Run from the repository root: python tools/build_release.py
+and release/VERSION (the .toc's version), and puts the version into the README title. Run from the repository root: python tools/build_release.py
 The zip is reproducible: fixed timestamps and order, so an unchanged addon gives an identical file."""
 import os, re, zipfile
 
@@ -21,6 +21,10 @@ def main():
             info.external_attr = 0o644 << 16
             z.writestr(info, open(path, "rb").read())
     open(os.path.join(out_dir, "VERSION"), "w", newline="\n").write(version + "\n")
+    readme = os.path.join(ROOT, "README.md")
+    text = open(readme, encoding="utf-8").read()
+    text = re.sub(r"\A# WhatToDo[^\n]*", "# WhatToDo " + version, text, count=1)
+    open(readme, "w", encoding="utf-8", newline="").write(text)
     print(f"WhatToDo {version}: {zpath} ({os.path.getsize(zpath)} bytes, {len(files)} files)")
 
 if __name__ == "__main__":
