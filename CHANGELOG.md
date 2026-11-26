@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.1
+- "Recraft if learned" no longer suggests a profession that one of your characters already has.
+
 ## 0.17.0
 - Trust model, stage 2 (model 1). Rows show a range (8 cases in 10) and the chance of success instead of one number and "trust":
   - recraft: item groups with their own starting assumptions (gear: little sells and the price swings; consumables steady; materials steadiest), refined by real sales (friends' at half weight) and closed batches; the batch is capped at what the market takes in 2 days; 300 scenarios per suggestion (units sold, price, unsold at vendor price, active time); success = in profit. Suggestions whose optimistic case still loses are hidden (`/wtd check` says why).

@@ -314,7 +314,7 @@ end
 --   { recipe, section = "craft" | "learn", who = { "Name" or "Name (Profession)" , ... } }
 -- craft: essence conversions; each character's scanned recipes in professions it still has; catalog recipes
 --        its rank already reaches.
--- learn: catalog recipes in professions a character with a free primary slot doesn't have.
+-- learn: catalog recipes in professions no character has yet, for characters with a free primary slot.
 ---------------------------------------------------------------------------
 
 function ns.AllRecipes()
@@ -357,6 +357,17 @@ function ns.AllRecipes()
 		end
 	end
 
+	-- professions some character already has (recorded ranks or scanned recipes): never suggested to learn
+	local owned = {}
+	for _, c in pairs(chars) do
+		for skill in pairs(c.professions or {}) do owned[skill] = true end
+	end
+	for charKey, professions in pairs(WhatToDoDB.recipes or {}) do
+		for profession, recipes in pairs(chars[charKey] and chars[charKey].professions and {} or professions) do -- known ranks win: a dropped profession's old recipes don't count
+			if type(recipes) == "table" and next(recipes) then owned[WINDOW_TO_SKILL[profession] or profession] = true end
+		end
+	end
+
 	-- catalog: what each character's ranks reach, and what free slots could learn
 	for charKey, c in pairs(chars) do
 		local professions = c.professions or {}
@@ -365,7 +376,7 @@ function ns.AllRecipes()
 			local rank = professions[r.profession]
 			if rank then
 				if rank >= r.skill then add(r, "craft", shortName(charKey)) end
-			elseif free and (c.level or 999) >= ns.LevelForSkill(r.skill) then -- level unknown (not logged in since 0.16): allowed
+			elseif free and not owned[r.profession] and (c.level or 999) >= ns.LevelForSkill(r.skill) then -- level unknown (not logged in since 0.16): allowed
 				add(r, "learn", shortName(charKey))
 			end
 		end
