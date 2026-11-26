@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.20.0
+- A click on a farming, gathering or zone row also highlights the spot on the map: the subzone's own shape (its explored-map overlay) in yellow, and a soft ellipse over where you actually looted (WhatToDo now also notes how spread out your loot points are). The highlight goes when the map closes or shows another zone.
+- "Recraft (AFK)" is just "Recraft"; an empty group isn't shown at all.
+
 ## 0.19.1
 - Tab icons fill the button's height, centred, with equal margins.
 

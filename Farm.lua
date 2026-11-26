@@ -133,9 +133,11 @@ local function rememberPosition()
 	local zone = WhatToDoDB.spotPos[mapID] or {}
 	WhatToDoDB.spotPos[mapID] = zone
 	local p = zone[sub]
-	if not p then zone[sub] = { x = x, y = y, n = 1 } return end
+	if not p then zone[sub] = { x = x, y = y, x2 = x * x, y2 = y * y, n = 1 } return end
 	local n = math.min(p.n + 1, 100) -- a running mean that keeps following where the farming now happens
 	p.x, p.y, p.n = p.x + (x - p.x) / n, p.y + (y - p.y) / n, n
+	-- mean squares too: their spread is how wide the farmed area is (older records start from the centre)
+	p.x2, p.y2 = (p.x2 or p.x * p.x) + (x * x - (p.x2 or p.x * p.x)) / n, (p.y2 or p.y * p.y) + (y * y - (p.y2 or p.y * p.y)) / n
 end
 
 local posWatch = CreateFrame("Frame")
@@ -157,6 +159,7 @@ function ns.ShowSpotOnMap(a)
 		if not WorldMapFrame:IsShown() then ToggleWorldMap() end
 		WorldMapFrame:SetMapID(mapID)
 	end
+	if p and ns.HighlightSpot then ns.HighlightSpot(mapID, p) end
 	if p and C_Map.SetUserWaypoint and UiMapPoint then
 		pcall(function()
 			C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, p.x, p.y))

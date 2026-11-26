@@ -30,7 +30,7 @@ end
 
 -- Each activity kind: its icon (rows and tabs), and its colour (header text, rule, a faint wash behind its rows).
 local SECTION = {
-	craft = { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "РЕКРАФТ (АФК)", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
+	craft = { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "РЕКРАФТ", note = "купити матеріали -> скрафтити -> продати", color = { 0.4, 0.67, 1 } },
 	learn = { icon = "Interface\\Icons\\INV_Misc_Book_09", title = "РЕКРАФТ: ЯКЩО ВИВЧИТИ", note = "для персонажів з вільним слотом професії", color = { 1, 0.6, 0.25 }, hideEmpty = true },
 	farm = { icon = "Interface\\Icons\\Ability_Tracking", title = "ФАРМ МОБІВ", note = "лут і монети з мобів (історія Yield, сьогоднішні ціни)", color = { 0.95, 0.45, 0.4 } },
 	mining = { icon = "Interface\\Icons\\Trade_Mining", title = "МАЙНІНГ", note = "руда й камінь з жил, за годину на місці", color = { 0.75, 0.75, 0.85 }, hideEmpty = true },
@@ -299,7 +299,7 @@ function ns.Refresh()
 		end
 	end
 	local function section(kind, list)
-		if #list == 0 and SECTION[kind].hideEmpty then return end
+		if #list == 0 then return end -- an empty group isn't shown at all
 		total = total + #list
 		if y > 0 then y = y + 8 end -- a gap between the sections
 		setHeader(nextRow(), kind, #list)
@@ -352,8 +352,8 @@ function ns.Refresh()
 	ns.ShowSubtabs(subtabs)
 	for i = used + 1, #rows do rows[i]:Hide(); rows[i].activity = nil end
 	frame.content:SetHeight(math.max(1, y))
-	frame.empty:SetText(emptyText())
-	frame.empty:SetShown(total == 0 and filter == "all")
+	frame.empty:SetText(filter == "all" and emptyText() or T("Тут поки нічого вигідного."))
+	frame.empty:SetShown(total == 0)
 	lastTotal = total
 	frame.status:SetText(statusText(total))
 	for key, b in pairs(frame.tabs) do

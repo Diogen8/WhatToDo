@@ -133,7 +133,7 @@ local EN = {
 	["Мало даних - цифра може сильно гуляти."] = "Little data - the number may swing a lot.",
 	["Клік - що потрібно для рецепта"] = "Click - what the recipe needs",
 	["Клік - відкрити рецепт у професії"] = "Click - open the recipe in the profession window",
-	["РЕКРАФТ (АФК)"] = "RECRAFT (AFK)",
+	["РЕКРАФТ"] = "RECRAFT",
 	["купити матеріали -> скрафтити -> продати"] = "buy materials -> craft -> sell",
 	["РЕКРАФТ: ЯКЩО ВИВЧИТИ"] = "RECRAFT: IF LEARNED",
 	["для персонажів з вільним слотом професії"] = "for characters with a free profession slot",
@@ -312,6 +312,7 @@ local EN = {
 	["ЗОНА"] = "ZONE",
 	["найкраще: %s"] = "best: %s",
 	[", місць: %d"] = ", spots: %d",
+	["Тут поки нічого вигідного."] = "Nothing profitable here yet.",
 }
 
 function ns.Lang()
