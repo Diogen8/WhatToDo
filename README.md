@@ -109,3 +109,5 @@ Follow these steps exactly. The same procedure installs and updates. Ask the use
 ---
 
 License: MIT
+
+NPC levels in `MobLevels.lua` are facts extracted from the [Questie](https://github.com/Questie/Questie) project's database (QuestieDB, WoW Forever data) with `tools/extract_mob_levels.py`. Thanks to the Questie team and its data contributors.

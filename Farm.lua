@@ -50,26 +50,33 @@ local function valueOf(itemID, yield, cache)
 end
 
 ---------------------------------------------------------------------------
--- Mob levels: Questie's NPC database when it's loaded, else the levels WhatToDo saw on targets, mouseover and
--- nameplates (WhatToDoDB.mobLevels[npcID] = { lo, hi }). A skull (level -1) counts as 99.
+-- Mob levels: the built-in table (MobLevels.lua, extracted once from QuestieDB data; no runtime dependency), widened
+-- by what WhatToDo saw on targets, mouseover and nameplates (WhatToDoDB.mobLevels[npcID] = { lo, hi }), which also
+-- covers mobs the table lacks. A skull (level -1) counts as 99.
 ---------------------------------------------------------------------------
 
-local function questieLevels(npcID)
-	if not (QuestieLoader and QuestieLoader.ImportModule) then return nil end
-	local ok, qdb = pcall(QuestieLoader.ImportModule, QuestieLoader, "QuestieDB")
-	if not (ok and type(qdb) == "table" and qdb.QueryNPCSingle) then return nil end
-	local okLo, lo = pcall(qdb.QueryNPCSingle, npcID, "minLevel")
-	local okHi, hi = pcall(qdb.QueryNPCSingle, npcID, "maxLevel")
-	if okLo and type(lo) == "number" and lo > 0 then
-		return lo, (okHi and type(hi) == "number" and hi >= lo) and hi or lo
+local builtin
+local function builtinLevels(npcID)
+	if not builtin then
+		builtin = {}
+		for id, lo, hi in (ns.MOB_LEVEL_DATA or ""):gmatch("(%d+),(%d+),?(%d*)") do
+			lo = tonumber(lo)
+			builtin[tonumber(id)] = { lo, tonumber(hi) or lo }
+		end
+		ns.MOB_LEVEL_DATA = nil -- the parsed table replaces the string
 	end
+	local t = builtin[npcID]
+	if t then return t[1], t[2] end
 end
 
 function ns.MobLevels(npcID)
-	local lo, hi = questieLevels(npcID)
-	if lo then return lo, hi end
+	local lo, hi = builtinLevels(npcID)
 	local seen = WhatToDoDB and WhatToDoDB.mobLevels and WhatToDoDB.mobLevels[npcID]
-	if seen then return seen[1], seen[2] end
+	if seen then
+		if lo then return math.min(lo, seen[1]), math.max(hi, seen[2]) end
+		return seen[1], seen[2]
+	end
+	return lo, hi
 end
 
 local function rememberLevel(unit)

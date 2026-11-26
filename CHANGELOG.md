@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.16.1
+- Mob levels are built in (MobLevels.lua, ~9900 hostile and neutral NPCs extracted from QuestieDB's Forever data), so Questie is no longer needed. Levels seen in game still widen and complete them.
+
 ## 0.16.0
 - Mob farming spots are left out when their mobs are more than 2 levels above the current character (levels from Questie, else seen on targets / mouseover / nameplates).
 - "If learned" respects the character level a trainer requires: rank 75+ from level 10, 150+ from 20, 225+ from 35.
