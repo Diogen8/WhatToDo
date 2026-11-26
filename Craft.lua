@@ -43,7 +43,11 @@ local function evaluate(entry)
 			if h > stalestHours then stalestHours, stalestItem = h, p.id end
 		end
 	end
-	local trust = ns.TrustOfHours(stalestHours)
+	local priceTrust = ns.TrustOfHours(stalestHours)
+	-- evidence: real sales of the product; never for recipes not learned yet
+	local salesCount = ns.SalesCount(r.product)
+	local evidence = entry.section == "learn" and 0 or ns.EvidenceOfSales(salesCount)
+	local trust = ns.CombineTrust(priceTrust, evidence)
 
 	local profit = revenue - cost
 	if profit < ns.Setting("minProfit") then return nil, string.format("прибуток за крафт %s < мінімуму %s (продаж %s, реагенти %s)", ns.Coin(profit), ns.Coin(ns.Setting("minProfit")), ns.Coin(revenue), ns.Coin(cost)) end
@@ -92,7 +96,9 @@ local function evaluate(entry)
 	end
 	if measured then tip[#tip + 1] = { "Час на крафт (факт)", string.format("%.1f с", measured) } end
 	tip[#tip + 1] = { "Без поправок було б", ns.Coin(expectedPerHour) .. "/год" }
-	tip[#tip + 1] = { "Довіра до цін", (ns.TrustLabel(trust)) .. string.format(" (найстаріша: %s, %s тому)", ns.ItemName(stalestItem), ns.AgeText(stalestHours)) }
+	tip[#tip + 1] = { "Довіра", (ns.TrustLabel(trust)) .. ": " .. ns.TrustExplain(priceTrust, evidence,
+		salesCount > 0 and string.format("продавали %d раз", salesCount) or "ще жодного продажу") }
+	tip[#tip + 1] = { "Найстаріша ціна", string.format("%s, %s тому", ns.ItemName(stalestItem), ns.AgeText(stalestHours)) }
 	tip[#tip + 1] = { entry.section == "learn" and "Вивчити" or "Професія", need }
 	tip[#tip + 1] = { entry.section == "learn" and "Вільний слот у" or "Хто може", who }
 	if r.catalog then tip[#tip + 1] = { "Джерело рецепта", "каталог (у тренера)" } end
@@ -111,6 +117,7 @@ local function evaluate(entry)
 		crafts = crafts,
 		product = r.product,
 		trust = trust,
+		priceTrust = priceTrust,
 		trustHours = stalestHours,
 		trustItem = stalestItem,
 		who = who,

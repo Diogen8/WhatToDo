@@ -170,9 +170,18 @@ function ns.FarmActivities()
 						stalestHours, stalestItem = hours, l.itemID
 					end
 				end
-				local trust = total > 0 and trusted / total or 1
+				local priceTrust = total > 0 and trusted / total or 1
+				-- evidence: the share of the value that was real gold (coin, items sold at least once),
+				-- times how much time backs it (an hour -> half)
+				local realized = c.money
+				for _, l in ipairs(lines) do
+					if ns.SalesCount(l.itemID) > 0 then realized = realized + l.value end
+				end
+				local realizedShare = total > 0 and realized / total or 0
+				local evidence = realizedShare * (s.seconds / (s.seconds + 3600))
 				local v = { cat = cat, c = c, value = total, expected = c.money + expectedItems, itemValue = itemValue, lines = lines,
-					trust = trust, stalestHours = stalestItem and stalestHours or nil, stalestItem = stalestItem }
+					trust = ns.CombineTrust(priceTrust, evidence), priceTrust = priceTrust, evidence = evidence, realizedShare = realizedShare,
+					stalestHours = stalestItem and stalestHours or nil, stalestItem = stalestItem }
 				valued[#valued + 1] = v
 				spotTotal = spotTotal + v.value
 			end
@@ -219,7 +228,9 @@ function ns.FarmActivities()
 						end
 					end
 					tip[#tip + 1] = { "Персонажі", table.concat(chars, ", ") }
-					tip[#tip + 1] = { "Довіра до цін", (ns.TrustLabel(v.trust)) .. (v.stalestItem and string.format(" (найстаріша: %s, %s тому)", ns.ItemName(v.stalestItem), ns.AgeText(v.stalestHours)) or "") }
+					tip[#tip + 1] = { "Довіра", (ns.TrustLabel(v.trust)) .. ": " .. ns.TrustExplain(v.priceTrust, v.evidence,
+						string.format("реально отримано %d%% вартості", math.floor(v.realizedShare * 100 + 0.5))) }
+					if v.stalestItem then tip[#tip + 1] = { "Найстаріша ціна", string.format("%s, %s тому", ns.ItemName(v.stalestItem), ns.AgeText(v.stalestHours)) } end
 					if math.abs(v.value - v.expected) >= 1 then
 						tip[#tip + 1] = { "Без поправок було б", ns.Coin(v.expected * 3600 / s.seconds) .. "/год" }
 					end
@@ -247,6 +258,7 @@ function ns.FarmActivities()
 						tooltip = tip,
 						confidence = math.min(1, s.seconds / 3600), -- an hour of data counts as solid
 						trust = v.trust,
+						priceTrust = v.priceTrust,
 					}
 				end
 			end

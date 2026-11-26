@@ -27,7 +27,7 @@ local function rowTooltip(row)
 	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
 	GameTooltip:AddLine(a.title, 1, 0.82, 0, true)
 	GameTooltip:AddDoubleLine("Золота за годину", coinText(a.perHour), 1, 1, 1, 1, 1, 1)
-	if a.trust and a.trust < 0.5 then
+	if a.priceTrust == 0 then
 		GameTooltip:AddLine("Ціни застарілі (понад 12 год) - перевірте аукціон перед тим, як діяти.", 1, 0.3, 0.3, true)
 	end
 	for _, line in ipairs(a.tooltip or {}) do

@@ -140,10 +140,38 @@ function ns.AgeText(hours)
 	return string.format("%d дн.", math.floor(hours / 24))
 end
 
--- Text and colour for a trust value: "довіра 100%" green, yellow in between, "ненадійно" red.
+-- Overall trust in a suggestion: real gold received weighs more than fresh prices.
+--   trust = 0.4 x price freshness + 0.6 x evidence (0..1 each)
+-- With no gold ever received for the activity (evidence 0) it can't go above 40%.
+local PRICE_WEIGHT, EVIDENCE_WEIGHT = 0.4, 0.6
+function ns.CombineTrust(priceTrust, evidence)
+	return PRICE_WEIGHT * (priceTrust or 0) + EVIDENCE_WEIGHT * (evidence or 0)
+end
+
+-- Evidence from a number of real sales: 1 -> 0.25, 3 -> 0.5, 9 -> 0.75.
+function ns.EvidenceOfSales(n)
+	n = n or 0
+	return n / (n + 3)
+end
+
+-- Times an item was actually sold (ledger, every character), 0 if never.
+function ns.SalesCount(itemID)
+	local l = ns.Ledger and ns.Ledger()
+	local s = l and l.sales[ns.ItemName(itemID)]
+	return s and s.events or 0
+end
+
+-- Text and colour for a trust value: green from 75%, yellow from 40%, red below.
 function ns.TrustLabel(trust)
 	if not trust then return "", 0.6, 0.6, 0.6 end
-	if trust >= 0.9 then return string.format("довіра %d%%", math.floor(trust * 100 + 0.5)), 0.3, 0.9, 0.3 end
-	if trust > 0 then return string.format("довіра %d%%", math.floor(trust * 100 + 0.5)), 1, 0.82, 0.2 end
-	return "ненадійно", 1, 0.3, 0.3
+	local text = string.format("довіра %d%%", math.floor(trust * 100 + 0.5))
+	if trust >= 0.75 then return text, 0.3, 0.9, 0.3 end
+	if trust >= 0.4 then return text, 1, 0.82, 0.2 end
+	return text, 1, 0.3, 0.3
+end
+
+-- Tooltip text explaining a trust value.
+function ns.TrustExplain(priceTrust, evidence, evidenceText)
+	return string.format("ціни %d%%, факт %d%%%s", math.floor((priceTrust or 0) * 100 + 0.5), math.floor((evidence or 0) * 100 + 0.5),
+		evidenceText and (" (" .. evidenceText .. ")") or "")
 end
