@@ -1,6 +1,7 @@
 -- Prices from Auctionator: its public API v1 for prices, scan age and vendor prices; listed quantities
 -- from its database's price history (DatabaseMixin:GetPriceHistory), which the API doesn't expose.
 local _, ns = ...
+local T = function(s) return ns.T(s) end
 local CALLER = "WhatToDo"
 
 function ns.HasAuctionator()
@@ -134,10 +135,10 @@ end
 -- "12 хв", "3.5 год", "2 дн."
 function ns.AgeText(hours)
 	if not hours then return "?" end
-	if hours == math.huge then return "понад 21 дн." end
-	if hours < 1 then return string.format("%d хв", math.floor(hours * 60 + 0.5)) end
-	if hours < 48 then return string.format("%.1f год", hours) end
-	return string.format("%d дн.", math.floor(hours / 24))
+	if hours == math.huge then return T("понад 21 дн.") end
+	if hours < 1 then return string.format(T("%d хв"), math.floor(hours * 60 + 0.5)) end
+	if hours < 48 then return string.format(T("%.1f год"), hours) end
+	return string.format(T("%d дн."), math.floor(hours / 24))
 end
 
 -- Overall trust in a suggestion: real gold received weighs more than fresh prices.
@@ -164,7 +165,7 @@ end
 -- Text and colour for a trust value: green from 75%, yellow from 40%, red below.
 function ns.TrustLabel(trust)
 	if not trust then return "", 0.6, 0.6, 0.6 end
-	local text = string.format("довіра %d%%", math.floor(trust * 100 + 0.5))
+	local text = string.format(T("довіра %d%%"), math.floor(trust * 100 + 0.5))
 	if trust >= 0.75 then return text, 0.3, 0.9, 0.3 end
 	if trust >= 0.4 then return text, 1, 0.82, 0.2 end
 	return text, 1, 0.3, 0.3
@@ -172,6 +173,6 @@ end
 
 -- Tooltip text explaining a trust value.
 function ns.TrustExplain(priceTrust, evidence, evidenceText)
-	return string.format("ціни %d%%, факт %d%%%s", math.floor((priceTrust or 0) * 100 + 0.5), math.floor((evidence or 0) * 100 + 0.5),
+	return string.format(T("ціни %d%%, факт %d%%%s"), math.floor((priceTrust or 0) * 100 + 0.5), math.floor((evidence or 0) * 100 + 0.5),
 		evidenceText and (" (" .. evidenceText .. ")") or "")
 end

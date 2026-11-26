@@ -9,6 +9,7 @@
 -- Mail is read when it's taken (TakeInboxMoney / TakeInboxItem / AutoLootMailItem, so "Open All" and Postal
 -- count too); a fingerprint keeps one mail from being booked twice.
 local _, ns = ...
+local T = function(s) return ns.T(s) end
 
 local LOG_MAX = 400
 local BLEND = 5          -- events before a correction counts fully (factor = 1 + (raw - 1) * n / (n + BLEND))
@@ -234,20 +235,20 @@ end
 function ns.LedgerReport()
 	local l = ledger()
 	if not l then return end
-	ns.Out(string.format("виручка з аукціону: 7 днів %s, 30 днів %s", ns.Coin(ns.Income(7)), ns.Coin(ns.Income(30))))
+	ns.Out(string.format(T("виручка з аукціону: 7 днів %s, 30 днів %s"), ns.Coin(ns.Income(7)), ns.Coin(ns.Income(30))))
 	local rows = {}
 	for name, s in pairs(l.sales) do rows[#rows + 1] = { name = name, s = s } end
 	table.sort(rows, function(a, b) return a.s.net > b.s.net end)
 	for i = 1, math.min(10, #rows) do
 		local s = rows[i].s
-		local ratio = s.expNet > 0 and string.format("%.0f%% від очікуваного", s.expFor / s.expNet * 100) or "без порівняння"
+		local ratio = s.expNet > 0 and string.format(T("%.0f%% від очікуваного"), s.expFor / s.expNet * 100) or T("без порівняння")
 		local offered = s.units + s.expired
-		print(string.format("  %s: продано %d, повернулось %d (%.0f%%), отримано %s, %s",
+		print(string.format(T("  %s: продано %d, повернулось %d (%.0f%%), отримано %s, %s"),
 			rows[i].name, s.units, s.expired, offered > 0 and s.units / offered * 100 or 0, ns.Coin(s.net), ratio))
 	end
 	local buys = 0
 	for _ in pairs(l.buys) do buys = buys + 1 end
 	local crafts = 0
 	for _ in pairs(l.crafts) do crafts = crafts + 1 end
-	print(string.format("  купівель: %d предметів, крафтів з таймінгом: %d предметів", buys, crafts))
+	print(string.format(T("  купівель: %d предметів, крафтів з таймінгом: %d предметів"), buys, crafts))
 end

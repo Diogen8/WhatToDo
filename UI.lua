@@ -1,5 +1,6 @@
 -- The window (/wtd) and chat commands.
 local _, ns = ...
+local T = function(s) return ns.T(s) end
 
 local ROW_HEIGHT, ROWS_MAX = 38, 40
 local frame, rows, filter = nil, {}, "all"
@@ -12,12 +13,12 @@ end
 
 local function statusText(count)
 	local parts = {}
-	parts[#parts + 1] = ns.HasAuctionator() and "Auctionator: є" or "|cffff6666Auctionator: немає|r"
-	parts[#parts + 1] = ns.HasYield() and "Yield: є" or "|cffff6666Yield: немає|r"
+	parts[#parts + 1] = ns.HasAuctionator() and T("Auctionator: є") or T("|cffff6666Auctionator: немає|r")
+	parts[#parts + 1] = ns.HasYield() and T("Yield: є") or T("|cffff6666Yield: немає|r")
 	local recipes, chars = ns.RecipeCount()
-	parts[#parts + 1] = string.format("рецептів: %d, персонажів: %d", recipes, chars)
-	parts[#parts + 1] = string.format("варіантів: %d", count)
-	parts[#parts + 1] = "виручка 7 дн.: " .. ns.Coin(ns.Income(7))
+	parts[#parts + 1] = string.format(T("рецептів: %d, персонажів: %d"), recipes, chars)
+	parts[#parts + 1] = string.format(T("варіантів: %d"), count)
+	parts[#parts + 1] = T("виручка 7 дн.: ") .. ns.Coin(ns.Income(7))
 	local notice = ns.UpdateNotice and ns.UpdateNotice()
 	parts[#parts + 1] = notice and ("|cff66ff66" .. notice .. "|r") or ("v" .. (ns.VERSION or "?"))
 	return table.concat(parts, "   ")
@@ -28,22 +29,22 @@ local function rowTooltip(row)
 	if not a then return end
 	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
 	GameTooltip:AddLine(a.title, 1, 0.82, 0, true)
-	GameTooltip:AddDoubleLine("Золота за годину", coinText(a.perHour), 1, 1, 1, 1, 1, 1)
+	GameTooltip:AddDoubleLine(T("Золота за годину"), coinText(a.perHour), 1, 1, 1, 1, 1, 1)
 	if a.priceTrust == 0 then
-		GameTooltip:AddLine("Ціни застарілі (понад 12 год) - перевірте аукціон перед тим, як діяти.", 1, 0.3, 0.3, true)
+		GameTooltip:AddLine(T("Ціни застарілі (понад 12 год) - перевірте аукціон перед тим, як діяти."), 1, 0.3, 0.3, true)
 	end
 	for _, line in ipairs(a.tooltip or {}) do
 		GameTooltip:AddDoubleLine(line[1], line[2], 0.8, 0.8, 0.8, 1, 1, 1)
 	end
 	if a.kind == "craft" then
 		GameTooltip:AddLine(" ")
-		GameTooltip:AddLine("Час на продаж не враховано. Ціни - мінімальні зі сканування.", 0.6, 0.6, 0.6, true)
+		GameTooltip:AddLine(T("Час на продаж не враховано. Ціни - мінімальні зі сканування."), 0.6, 0.6, 0.6, true)
 	elseif a.kind ~= "learn" and a.confidence and a.confidence < 1 then
 		GameTooltip:AddLine(" ")
-		GameTooltip:AddLine("Мало даних - цифра може сильно гуляти.", 1, 0.5, 0.3, true)
+		GameTooltip:AddLine(T("Мало даних - цифра може сильно гуляти."), 1, 0.5, 0.3, true)
 	end
 	if a.product then
-		GameTooltip:AddLine(a.kind == "learn" and "Клік - що потрібно для рецепта" or "Клік - відкрити рецепт у професії", 0.4, 0.8, 1, true)
+		GameTooltip:AddLine(a.kind == "learn" and T("Клік - що потрібно для рецепта") or T("Клік - відкрити рецепт у професії"), 0.4, 0.8, 1, true)
 	end
 	GameTooltip:Show()
 end
@@ -118,9 +119,9 @@ local function setHeader(r, kind, count)
 	r.bg:SetColorTexture(c[1], c[2], c[3], 0.12)
 	r.rule:SetColorTexture(c[1], c[2], c[3], 0.8)
 	r.rule:Show()
-	r.header:SetText(s.title)
+	r.header:SetText(T(s.title))
 	r.header:SetTextColor(c[1], c[2], c[3])
-	r.headerNote:SetText(count > 0 and s.note or "нічого вигідного (/wtd - підказки)")
+	r.headerNote:SetText(count > 0 and T(s.note) or T("нічого вигідного (/wtd - підказки)"))
 	r.header:Show(); r.headerNote:Show()
 	r.rank:Hide(); r.value:Hide(); r.title:Hide(); r.detail:Hide(); r.trust:Hide()
 end
@@ -138,14 +139,22 @@ local function setActivity(r, a, rank)
 	r.title:SetText(a.title)
 	local detail = a.detail or ""
 	if a.corrected and a.expectedPerHour and a.expectedPerHour > 0 then
-		detail = string.format("|cffffcc66факт %.0f%% від прогнозу|r, ", a.perHour / a.expectedPerHour * 100) .. detail
+		detail = string.format(T("|cffffcc66факт %.0f%% від прогнозу|r, "), a.perHour / a.expectedPerHour * 100) .. detail
 	end
 	r.detail:SetText(detail)
-	r.value:SetText(coinText(a.perHour) .. "/год")
+	r.value:SetText(coinText(a.perHour) .. T("/год"))
 	local label, tr, tg, tb = ns.TrustLabel(a.trust)
 	r.trust:SetText(label)
 	r.trust:SetTextColor(tr, tg, tb)
 	r.rank:Show(); r.value:Show(); r.title:Show(); r.detail:Show(); r.trust:Show()
+end
+
+local function emptyText()
+	return T("Поки нічого порадити.\n\n") ..
+		T("Збір (майнінг, трави, скінінг, риболовля) береться з тих самих сесій Yield.\n") ..
+		T("Рекрафт: проскануйте аукціон в Auctionator і зайдіть кожним персонажем хоч раз,\n") ..
+		T("щоб WhatToDo запам'ятав їхні професії (вікна професій - для точних рецептів).\n") ..
+		T("Фарм: увімкніть Yield і пофарміть хоча б 10 хв на одному місці.")
 end
 
 function ns.Refresh()
@@ -178,6 +187,7 @@ function ns.Refresh()
 	end
 	for i = used + 1, #rows do rows[i]:Hide(); rows[i].activity = nil end
 	frame.content:SetHeight(math.max(1, y))
+	frame.empty:SetText(emptyText())
 	frame.empty:SetShown(total == 0 and filter == "all")
 	frame.status:SetText(statusText(total))
 	for key, b in pairs(frame.tabs) do
@@ -185,11 +195,6 @@ function ns.Refresh()
 	end
 end
 
-local EMPTY_TEXT = "Поки нічого порадити.\n\n" ..
-	"Збір (майнінг, трави, скінінг, риболовля) береться з тих самих сесій Yield.\n" ..
-	"Рекрафт: проскануйте аукціон в Auctionator і зайдіть кожним персонажем хоч раз,\n" ..
-	"щоб WhatToDo запам'ятав їхні професії (вікна професій - для точних рецептів).\n" ..
-	"Фарм: увімкніть Yield і пофарміть хоча б 10 хв на одному місці."
 
 local function create()
 	local f = CreateFrame("Frame", "WhatToDoFrame", UIParent, "BasicFrameTemplateWithInset")
@@ -206,14 +211,14 @@ local function create()
 
 	local title = f.TitleText or f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	if not f.TitleText then title:SetPoint("TOP", 0, -5) end
-	title:SetText("WhatToDo - найвигідніше за годину")
+	f.titleText = title
 
 	f.tabs = {}
 	local function tab(key, label, x)
 		local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 		b:SetSize(82, 22)
 		b:SetPoint("TOPLEFT", x, -30)
-		b:SetText(label)
+		b.label = label
 		b:SetScript("OnClick", function() filter = key; ns.Refresh() end)
 		f.tabs[key] = b
 	end
@@ -226,8 +231,15 @@ local function create()
 	local refresh = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	refresh:SetSize(90, 22)
 	refresh:SetPoint("TOPRIGHT", -12, -30)
-	refresh:SetText("Оновити")
 	refresh:SetScript("OnClick", ns.Refresh)
+	f.refreshButton = refresh
+
+	-- UA / EN switch, left of the close button
+	local lang = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	lang:SetSize(38, 18)
+	lang:SetPoint("TOPRIGHT", -28, -3)
+	lang:SetScript("OnClick", function() ns.SetLanguage(ns.Lang() == "en" and "uk" or "en") end)
+	f.langButton = lang
 
 	local scroll = CreateFrame("ScrollFrame", "WhatToDoScroll", f, "UIPanelScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", 10, -58)
@@ -241,14 +253,31 @@ local function create()
 	f.empty = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	f.empty:SetPoint("CENTER", 0, -20)
 	f.empty:SetWidth(640)
-	f.empty:SetText(EMPTY_TEXT)
 
 	f.status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	f.status:SetPoint("BOTTOMLEFT", 14, 10)
 
 	f:SetScript("OnShow", ns.Refresh)
+	frame = f
+	ns.ApplyLanguage()
 	f:Hide()
 	frame = f
+end
+
+-- Texts set once at creation, re-set for the current language.
+function ns.ApplyLanguage()
+	if frame then
+		frame.titleText:SetText(T("WhatToDo - найвигідніше за годину"))
+		for _, b in pairs(frame.tabs) do b:SetText(T(b.label)) end
+		frame.refreshButton:SetText(T("Оновити"))
+		frame.langButton:SetText(ns.Lang() == "en" and "UA" or "EN") -- the language a click switches to
+	end
+	ns.Refresh()
+end
+
+function ns.SetLanguage(lang)
+	WhatToDoDB.settings.lang = (lang == "en") and "en" or "uk"
+	ns.ApplyLanguage()
 end
 
 function ns.Toggle()
@@ -289,11 +318,11 @@ local SETTING_HELP = {
 local function printTop(n)
 	for _, kind in ipairs(SECTION_ORDER) do
 		local list = ns.Rank(kind)
-		if not (#list == 0 and SECTION[kind].hideEmpty) then print("|cffffd100" .. SECTION[kind].title .. "|r") end
-		if #list == 0 and not SECTION[kind].hideEmpty then print("  нічого вигідного") end
+		if not (#list == 0 and SECTION[kind].hideEmpty) then print("|cffffd100" .. T(SECTION[kind].title) .. "|r") end
+		if #list == 0 and not SECTION[kind].hideEmpty then print(T("  нічого вигідного")) end
 		for i = 1, math.min(n, #list) do
 			local a = list[i]
-			print(string.format("  %d. %s - %s/год", i, a.title, ns.Coin(a.perHour)))
+			print(string.format(T("  %d. %s - %s/год"), i, a.title, ns.Coin(a.perHour)))
 		end
 	end
 end
@@ -314,54 +343,61 @@ SlashCmdList.WHATTODO = function(msg)
 			ns.Out(key .. " = " .. value)
 			ns.Refresh()
 		else
-			ns.Out("налаштування (/wtd set <назва> <число>):")
-			for k, help in pairs(SETTING_HELP) do print(string.format("  %s = %s - %s", k, tostring(ns.Setting(k)), help)) end
+			ns.Out(T("налаштування (/wtd set <назва> <число>):"))
+			for k, help in pairs(SETTING_HELP) do print(string.format("  %s = %s - %s", k, tostring(ns.Setting(k)), T(help))) end
 		end
 	elseif cmd == "reset" then
 		WhatToDoDB.settings = {}
-		ns.Out("налаштування скинуто.")
+		ns.Out(T("налаштування скинуто."))
 		ns.Refresh()
 	elseif cmd == "minimap" then
 		WhatToDoDB.settings.minimapHide = (ns.Setting("minimapHide") == 1) and 0 or 1
 		ns.UpdateMinimapButton()
-		ns.Out(ns.Setting("minimapHide") == 1 and "кнопку біля мінікарти сховано (/wtd minimap - повернути)." or "кнопку біля мінікарти показано.")
+		ns.Out(ns.Setting("minimapHide") == 1 and T("кнопку біля мінікарти сховано (/wtd minimap - повернути).") or T("кнопку біля мінікарти показано."))
 	elseif cmd == "check" and rest ~= "" then
-		ns.Out("чому пропонується чи ні: " .. rest)
+		ns.Out(T("чому пропонується чи ні: ") .. rest)
 		ns.Explain(rest)
 	elseif cmd == "debug" then
-		local function has(x) return x and "так" or "ні" end
-		ns.Out("діагностика:")
-		print("  навички: C_SkillInfo " .. has(C_SkillInfo and C_SkillInfo.GetSkillLineInfo) .. ", старий API " .. has(GetSkillLineInfo))
-		print("  рецепти: C_TradeSkillUI " .. has(C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs) .. ", старий API " .. has(GetTradeSkillLine))
+		local function has(x) return x and T("так") or T("ні") end
+		ns.Out(T("діагностика:"))
+		print(T("  навички: C_SkillInfo ") .. has(C_SkillInfo and C_SkillInfo.GetSkillLineInfo) .. T(", старий API ") .. has(GetSkillLineInfo))
+		print(T("  рецепти: C_TradeSkillUI ") .. has(C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs) .. T(", старий API ") .. has(GetTradeSkillLine))
 		local rows, api = ns.SkillLines()
-		print(string.format("  рядків навичок: %s (%s)", rows and #rows or "немає", api or "-"))
-		print("  персонажі: " .. ns.KnownCharsText())
+		print(string.format(T("  рядків навичок: %s (%s)"), rows and #rows or T("немає"), api or "-"))
+		print(T("  персонажі: ") .. ns.KnownCharsText())
 		local recipes = ns.RecipeCount()
-		print(string.format("  записаних рецептів: %d", recipes))
+		print(string.format(T("  записаних рецептів: %d"), recipes))
 		local ls = ns.lastScan
 		if ls then
-			print(string.format("  останнє читання вікна професії: %s", ls.profession and string.format("%s через %s, %d рецептів (+%d нових)", ls.profession, ls.api, ls.seen or 0, ls.added or 0) or ls.result))
+			print(string.format(T("  останнє читання вікна професії: %s"), ls.profession and string.format(T("%s через %s, %d рецептів (+%d нових)"), ls.profession, ls.api, ls.seen or 0, ls.added or 0) or ls.result))
 		else
-			print("  вікно професії в цій сесії не відкривалось")
+			print(T("  вікно професії в цій сесії не відкривалось"))
 		end
 		print("  Auctionator: " .. has(ns.HasAuctionator()) .. ", Yield: " .. has(ns.HasYield()))
 		local seen = 0
 		for _ in pairs(WhatToDoDB.priceSeen or {}) do seen = seen + 1 end
-		print(string.format("  точний час цін: перехоплення %s, записано предметів: %d", has(ns.PriceHookActive()), seen))
+		print(string.format(T("  точний час цін: перехоплення %s, записано предметів: %d"), has(ns.PriceHookActive()), seen))
+	elseif cmd == "lang" then
+		if rest == "en" or rest == "uk" or rest == "ua" then
+			ns.SetLanguage(rest == "en" and "en" or "uk")
+			ns.Out(ns.Lang() == "en" and "language: English" or "мова: українська")
+		else
+			ns.Out("/wtd lang en | /wtd lang uk")
+		end
 	elseif cmd == "version" then
-		ns.Out("версія " .. ns.VERSION .. (ns.UpdateNotice and ns.UpdateNotice() and (", " .. ns.UpdateNotice()) or ", новішої у друзів поки не бачили"))
+		ns.Out(T("версія ") .. ns.VERSION .. (ns.UpdateNotice and ns.UpdateNotice() and (", " .. ns.UpdateNotice()) or T(", новішої у друзів поки не бачили")))
 	elseif cmd == "stats" then
 		ns.LedgerReport()
 	elseif cmd == "ledger" and rest == "reset" then
 		WhatToDoDB.ledger = nil
-		ns.Out("журнал фактичних результатів очищено.")
+		ns.Out(T("журнал фактичних результатів очищено."))
 		ns.Refresh()
 	elseif cmd == "forget" then
 		WhatToDoDB.recipes[ns.CharKey()] = nil
 		WhatToDoDB.chars[ns.CharKey()] = nil
-		ns.Out("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій.")
+		ns.Out(T("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій."))
 	else
-		ns.Out("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа")
+		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
 	end
 end
 

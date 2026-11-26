@@ -4,6 +4,7 @@
 --   "V:<version>" - an announcement. A receiver with an older copy shows a notice; one with a newer copy
 --                   answers by whisper so the sender learns about it too.
 local ADDON_NAME, ns = ...
+local T = function(s) return ns.T(s) end
 
 local PREFIX = "WhatToDoVer"
 local THROTTLE = 60     -- seconds between announcements to the same channel / friend
@@ -81,7 +82,7 @@ local function onMessage(text, channel, sender)
 		-- theirs is newer
 		if not ns.newestSeen or compare(ns.newestSeen.version, version) < 0 then
 			ns.newestSeen = { version = version, from = who }
-			ns.Out(string.format("доступна новіша версія |cff66ff66%s|r (у %s), у вас %s. Оновіть аддон.", version, who, ns.VERSION))
+			ns.Out(string.format(T("доступна новіша версія |cff66ff66%s|r (у %s), у вас %s. Оновіть аддон."), version, who, ns.VERSION))
 			if ns.Refresh then ns.Refresh() end
 		end
 	elseif order > 0 and not answered[sender] then
@@ -114,5 +115,5 @@ end)
 -- One line for the window's status and the minimap tooltip, or nil when up to date.
 function ns.UpdateNotice()
 	local n = ns.newestSeen
-	if n then return string.format("є новіша версія %s (у %s)", n.version, n.from) end
+	if n then return string.format(T("є новіша версія %s (у %s)"), n.version, n.from) end
 end

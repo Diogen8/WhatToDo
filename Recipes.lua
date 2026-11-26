@@ -5,6 +5,7 @@
 -- ones are never dropped by a later, partial scan.
 -- Enchanting (the Craft window) makes no items and isn't read.
 local _, ns = ...
+local T = function(s) return ns.T(s) end
 
 -- Combining essences needs no profession: right-click 3 lesser for 1 greater, or 1 greater for 3 lesser.
 local ESSENCES = {
@@ -101,9 +102,9 @@ local function call(f, ...)
 end
 
 local function modernProfession()
-	local T = C_TradeSkillUI
+	local TS = C_TradeSkillUI
 	for _, getter in ipairs({ "GetBaseProfessionInfo", "GetChildProfessionInfo" }) do
-		local info = call(T[getter])
+		local info = call(TS[getter])
 		local name = type(info) == "table" and (info.parentProfessionName or info.professionName)
 		if name and name ~= "" then return name end
 	end
@@ -112,17 +113,17 @@ local function modernProfession()
 end
 
 local function scanModern()
-	local T = C_TradeSkillUI
-	if not (T and T.GetAllRecipeIDs and T.GetRecipeSchematic) then return nil end
-	local ids = call(T.GetAllRecipeIDs)
+	local TS = C_TradeSkillUI
+	if not (TS and TS.GetAllRecipeIDs and TS.GetRecipeSchematic) then return nil end
+	local ids = call(TS.GetAllRecipeIDs)
 	if type(ids) ~= "table" or #ids == 0 then return nil end
 	local profession = modernProfession()
 	if not profession then return nil end
 	local added, seen = 0, 0
 	for _, recipeID in ipairs(ids) do
-		local info = T.GetRecipeInfo and call(T.GetRecipeInfo, recipeID)
+		local info = TS.GetRecipeInfo and call(TS.GetRecipeInfo, recipeID)
 		if not (type(info) == "table" and info.learned == false) then
-			local schematic = call(T.GetRecipeSchematic, recipeID, false)
+			local schematic = call(TS.GetRecipeSchematic, recipeID, false)
 			local product = type(schematic) == "table" and schematic.outputItemID
 			if product then
 				local reagents, complete = {}, true
@@ -140,7 +141,7 @@ local function scanModern()
 					seen = seen + 1
 					local minMade = schematic.quantityMin or 1
 					local maxMade = schematic.quantityMax or minMade
-					local cooldown = T.GetRecipeCooldown and call(T.GetRecipeCooldown, recipeID)
+					local cooldown = TS.GetRecipeCooldown and call(TS.GetRecipeCooldown, recipeID)
 					local name = schematic.name or (type(info) == "table" and info.name) or ("recipe " .. recipeID)
 					if store(profession, name, product, (minMade + maxMade) / 2, reagents, castMsOf(recipeID), type(cooldown) == "number" and cooldown > 0, recipeID) then
 						added = added + 1
@@ -170,7 +171,7 @@ local function scan()
 	if char then char._scanned = time() end
 	ns.lastScan = { time = time(), api = api, profession = profession, seen = seen, added = added }
 	if added > 0 then
-		ns.Out(string.format("%s: +%d рецептів записано.", profession, added))
+		ns.Out(string.format(T("%s: +%d рецептів записано."), profession, added))
 		if ns.Refresh then ns.Refresh() end
 	end
 end
@@ -269,7 +270,7 @@ function ns.KnownCharsText()
 		parts[#parts + 1] = string.format("%s (%s)", c.name or "?", #profs > 0 and table.concat(profs, ", ") or "-")
 	end
 	table.sort(parts)
-	return #parts > 0 and table.concat(parts, "; ") or "ще жодного (зайдіть кожним персонажем)"
+	return #parts > 0 and table.concat(parts, "; ") or T("ще жодного (зайдіть кожним персонажем)")
 end
 
 local skillsScheduled = false
@@ -411,27 +412,27 @@ function ns.OpenRecipe(activity)
 	if not product then return end
 	local name = ns.ItemName(product)
 	if InCombatLockdown and InCombatLockdown() then
-		return ns.Out("у бою вікно професії не відкрити.")
+		return ns.Out(T("у бою вікно професії не відкрити."))
 	end
 	if activity.kind == "learn" then
-		return ns.Out(string.format("%s: рецепт ще треба вивчити (%s).", name, activity.need or "у тренера"))
+		return ns.Out(string.format(T("%s: рецепт ще треба вивчити (%s)."), name, activity.need or T("у тренера")))
 	end
 	if activity.conversion then
-		return ns.Out(string.format("%s: це об'єднання есенцій - клацніть правою кнопкою по есенції в сумці.", name))
+		return ns.Out(string.format(T("%s: це об'єднання есенцій - клацніть правою кнопкою по есенції в сумці."), name))
 	end
 	local r = myRecipe(product)
-	local T = C_TradeSkillUI
-	if r and r.recipeID and T and T.OpenRecipe then
-		local ok = pcall(T.OpenRecipe, r.recipeID)
+	local TS = C_TradeSkillUI
+	if r and r.recipeID and TS and TS.OpenRecipe then
+		local ok = pcall(TS.OpenRecipe, r.recipeID)
 		if ok then return end
 	end
 	if selectLegacy(product) then return end
 	if r then
-		return ns.Out(string.format("%s: відкрийте вікно професії - рецепт виділиться, коли вікно буде відкрите.", name))
+		return ns.Out(string.format(T("%s: відкрийте вікно професії - рецепт виділиться, коли вікно буде відкрите."), name))
 	end
 	local who = activity.who or ""
 	if who ~= "" and not who:find(UnitName("player") or "", 1, true) then
-		return ns.Out(string.format("%s крафтить %s, не цей персонаж.", name, who))
+		return ns.Out(string.format(T("%s крафтить %s, не цей персонаж."), name, who))
 	end
-	ns.Out(string.format("%s: рецепт ще не записаний - відкрийте один раз вікно професії.", name))
+	ns.Out(string.format(T("%s: рецепт ще не записаний - відкрийте один раз вікно професії."), name))
 end

@@ -2,6 +2,7 @@
 -- minimap edge. The angle (degrees) and hidden state are saved in WhatToDoDB.settings. Hand-rolled, laid out
 -- like LibDBIcon's buttons.
 local _, ns = ...
+local T = function(s) return ns.T(s) end
 
 local ICON = "Interface\\Icons\\INV_Misc_Coin_02"
 local button
@@ -39,16 +40,16 @@ local function showTooltip(self)
 		local best = ns.Rank(s[1])[1]
 		if best then
 			any = true
-			GameTooltip:AddDoubleLine(s[2] .. ": " .. best.title, ns.Coin(best.perHour) .. "/год", 0.9, 0.9, 0.9, 1, 1, 1)
+			GameTooltip:AddDoubleLine(T(s[2]) .. ": " .. best.title, ns.Coin(best.perHour) .. T("/год"), 0.9, 0.9, 0.9, 1, 1, 1)
 		end
 	end
-	if not any then GameTooltip:AddLine("Поки нічого порадити.", 0.7, 0.7, 0.7) end
+	if not any then GameTooltip:AddLine(T("Поки нічого порадити."), 0.7, 0.7, 0.7) end
 	local income = ns.Income and ns.Income(7) or 0
-	if income > 0 then GameTooltip:AddDoubleLine("Виручка з аукціону, 7 дн.", ns.Coin(income), 0.7, 0.7, 0.7, 1, 1, 1) end
+	if income > 0 then GameTooltip:AddDoubleLine(T("Виручка з аукціону, 7 дн."), ns.Coin(income), 0.7, 0.7, 0.7, 1, 1, 1) end
 	local notice = ns.UpdateNotice and ns.UpdateNotice()
 	if notice then GameTooltip:AddLine(notice, 0.4, 1, 0.4, true) end
 	GameTooltip:AddLine(" ")
-	GameTooltip:AddLine("Лівий клік - вікно, правий - топ у чат, тягнути - перемістити", 0.6, 0.6, 0.6, true)
+	GameTooltip:AddLine(T("Лівий клік - вікно, правий - топ у чат, тягнути - перемістити"), 0.6, 0.6, 0.6, true)
 	GameTooltip:Show()
 end
 

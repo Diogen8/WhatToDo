@@ -5,6 +5,7 @@
 -- Every character's sessions are summed per spot (zone + subzone) and the loot is valued at today's prices,
 -- through Yield's own ItemPrice when Yield is loaded (same AH cut, stale and exclusion rules as its window).
 local _, ns = ...
+local T = function(s) return ns.T(s) end
 
 local SKIP_KINDS = { purchase = true, quest = true, mail = true, trade = true, vendor = true }
 local GATHER = { mining = true, herbalism = true, fishing = true }
@@ -195,49 +196,49 @@ function ns.FarmActivities()
 					table.sort(sources, function(a, b) return a.n > b.n end)
 
 					local tip = {
-						{ "Відстежено на місці", string.format("%.1f год", hours) },
+						{ T("Відстежено на місці"), string.format(T("%.1f год"), hours) },
 					}
-					if c.money > 0 then tip[#tip + 1] = { "Монети", ns.Coin(c.money * 3600 / s.seconds) .. "/год" } end
-					tip[#tip + 1] = { "Предмети", ns.Coin(v.itemValue * 3600 / s.seconds) .. "/год" }
+					if c.money > 0 then tip[#tip + 1] = { T("Монети"), ns.Coin(c.money * 3600 / s.seconds) .. T("/год") } end
+					tip[#tip + 1] = { T("Предмети"), ns.Coin(v.itemValue * 3600 / s.seconds) .. T("/год") }
 					if c.count > 0 then
-						tip[#tip + 1] = { gather and (GATHER_LABEL[cat] or "Збирань") or "Вбивств", string.format("%d (%.0f/год)", c.count, c.count / hours) }
-						if gather then tip[#tip + 1] = { "За одне " .. (cat == "fishing" and "закидання" or "збирання"), ns.Coin(v.value / c.count) } end
+						tip[#tip + 1] = { gather and T(GATHER_LABEL[cat] or "Збирань") or T("Вбивств"), string.format(T("%d (%.0f/год)"), c.count, c.count / hours) }
+						if gather then tip[#tip + 1] = { T("За одне ") .. (cat == "fishing" and T("закидання") or T("збирання")), ns.Coin(v.value / c.count) } end
 					end
 					tip[#tip + 1] = { " ", " " }
-					tip[#tip + 1] = { "Найцінніше:", "" }
+					tip[#tip + 1] = { T("Найцінніше:"), "" }
 					for i = 1, math.min(6, #v.lines) do
 						local l = v.lines[i]
 						local fText = ns.FactorText(l.factor)
-						tip[#tip + 1] = { string.format("  %s x%d", ns.ItemName(l.itemID), l.count), ns.Coin(l.value * 3600 / s.seconds) .. "/год" .. (fText and (" (факт " .. fText .. ")") or "") }
+						tip[#tip + 1] = { string.format("  %s x%d", ns.ItemName(l.itemID), l.count), ns.Coin(l.value * 3600 / s.seconds) .. T("/год") .. (fText and (T(" (факт ") .. fText .. ")") or "") }
 					end
 					if not gather and #sources > 0 then
 						tip[#tip + 1] = { " ", " " }
-						tip[#tip + 1] = { "Джерела:", "" }
+						tip[#tip + 1] = { T("Джерела:"), "" }
 						for i = 1, math.min(4, #sources) do
 							tip[#tip + 1] = { "  " .. sourceName(db, sources[i].key), tostring(sources[i].n) }
 						end
 					end
 					tip[#tip + 1] = { " ", " " }
 					if spotTotal > v.value then
-						tip[#tip + 1] = { "Частка доходу місця", string.format("%.0f%%", v.value / spotTotal * 100) }
-						tip[#tip + 1] = { "Місце разом (усе)", ns.Coin(spotTotal * 3600 / s.seconds) .. "/год" }
+						tip[#tip + 1] = { T("Частка доходу місця"), string.format("%.0f%%", v.value / spotTotal * 100) }
+						tip[#tip + 1] = { T("Місце разом (усе)"), ns.Coin(spotTotal * 3600 / s.seconds) .. T("/год") }
 						for _, other in ipairs(valued) do
 							if other ~= v and other.value > 0 then
-								tip[#tip + 1] = { "  + " .. (CAT_NAME[other.cat] or other.cat), ns.Coin(other.value * 3600 / s.seconds) .. "/год" }
+								tip[#tip + 1] = { "  + " .. T(CAT_NAME[other.cat] or other.cat), ns.Coin(other.value * 3600 / s.seconds) .. T("/год") }
 							end
 						end
 					end
-					tip[#tip + 1] = { "Персонажі", table.concat(chars, ", ") }
-					tip[#tip + 1] = { "Довіра", (ns.TrustLabel(v.trust)) .. ": " .. ns.TrustExplain(v.priceTrust, v.evidence,
-						string.format("реально отримано %d%% вартості", math.floor(v.realizedShare * 100 + 0.5))) }
-					if v.stalestItem then tip[#tip + 1] = { "Найстаріша ціна", string.format("%s, %s тому", ns.ItemName(v.stalestItem), ns.AgeText(v.stalestHours)) } end
+					tip[#tip + 1] = { T("Персонажі"), table.concat(chars, ", ") }
+					tip[#tip + 1] = { T("Довіра"), string.format("%d%%: ", math.floor(v.trust * 100 + 0.5)) .. ns.TrustExplain(v.priceTrust, v.evidence,
+						string.format(T("реально отримано %d%% вартості"), math.floor(v.realizedShare * 100 + 0.5))) }
+					if v.stalestItem then tip[#tip + 1] = { T("Найстаріша ціна"), string.format(T("%s, %s тому"), ns.ItemName(v.stalestItem), ns.AgeText(v.stalestHours)) } end
 					if math.abs(v.value - v.expected) >= 1 then
-						tip[#tip + 1] = { "Без поправок було б", ns.Coin(v.expected * 3600 / s.seconds) .. "/год" }
+						tip[#tip + 1] = { T("Без поправок було б"), ns.Coin(v.expected * 3600 / s.seconds) .. T("/год") }
 					end
 
-					local detail = string.format("%.1f год даних", hours)
+					local detail = string.format(T("%.1f год даних"), hours)
 					if c.count > 0 then
-						detail = detail .. string.format(", %.0f %s/год", c.count / hours, gather and (RATE_UNIT[cat] or "збирань") or "вбивств")
+						detail = detail .. string.format(T(", %.0f %s/год"), c.count / hours, gather and T(RATE_UNIT[cat] or "збирань") or T("вбивств"))
 					end
 					if gather then
 						if v.lines[1] then detail = detail .. ", " .. ns.ItemName(v.lines[1].itemID) end
@@ -245,7 +246,7 @@ function ns.FarmActivities()
 						detail = detail .. ", " .. sourceName(db, sources[1].key)
 					end
 					if spotTotal > v.value * 1.05 then
-						detail = detail .. string.format(", разом на місці %s/год", ns.Coin(spotTotal * 3600 / s.seconds))
+						detail = detail .. string.format(T(", разом на місці %s/год"), ns.Coin(spotTotal * 3600 / s.seconds))
 					end
 
 					out[#out + 1] = {
