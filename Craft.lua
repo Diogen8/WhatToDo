@@ -97,7 +97,7 @@ local function evaluate(entry)
 	if measured then tip[#tip + 1] = { "Час на крафт (факт)", string.format("%.1f с", measured) } end
 	tip[#tip + 1] = { "Без поправок було б", ns.Coin(expectedPerHour) .. "/год" }
 	tip[#tip + 1] = { "Довіра", (ns.TrustLabel(trust)) .. ": " .. ns.TrustExplain(priceTrust, evidence,
-		salesCount > 0 and string.format("продавали %d раз", salesCount) or "ще жодного продажу") }
+		salesCount > 0 and string.format("продажів: %d", salesCount) or "ще жодного продажу") }
 	tip[#tip + 1] = { "Найстаріша ціна", string.format("%s, %s тому", ns.ItemName(stalestItem), ns.AgeText(stalestHours)) }
 	tip[#tip + 1] = { entry.section == "learn" and "Вивчити" or "Професія", need }
 	tip[#tip + 1] = { entry.section == "learn" and "Вільний слот у" or "Хто може", who }
