@@ -186,11 +186,44 @@ local function clamp(x, lo, hi) return math.max(lo, math.min(hi, x)) end
 local function blend(raw, n) return 1 + (raw - 1) * n / (n + BLEND) end
 local function enabled() return ns.Setting("corrections") == 1 end
 
+-- Your record plus friends' shared ones (Share.lua) at half weight, field by field; nil when nobody has one.
+-- kind: "sales" or "buys" (keyed by item name) or "crafts" (keyed by item ID).
+local SHARED_WEIGHT = 0.5
+local DEFAULTS = {
+	sales = { units = 0, events = 0, net = 0, expired = 0, expiredEvents = 0, expNet = 0, expFor = 0 },
+	buys = { units = 0, events = 0, paid = 0, expected = 0, paidFor = 0 },
+	crafts = { crafts = 0, units = 0, seconds = 0, gaps = 0 },
+}
+local function combined(kind, key)
+	local out
+	local function add(r, weight)
+		if type(r) ~= "table" then return end
+		out = out or {}
+		for field in pairs(DEFAULTS[kind]) do
+			out[field] = (out[field] or 0) + (tonumber(r[field]) or 0) * weight
+		end
+	end
+	local l = ledger()
+	add(l and l[kind][key], 1)
+	local own = out ~= nil
+	for _, data in pairs((WhatToDoDB and WhatToDoDB.shared) or {}) do
+		local r = data[kind] and data[kind][key]
+		if r then
+			add(r, kind == "crafts" and 1 or SHARED_WEIGHT) -- craft timings are objective: full weight
+			out.friends = (out.friends or 0) + 1
+		end
+	end
+	if out then out.own = own end
+	return out
+end
+
+-- An item's sales record, own plus friends' (half weight), or nil.
+function ns.SalesRecord(itemID) return combined("sales", ns.ItemName(itemID)) end
+
 -- Multiplier for an item's expected AH net: realized price vs Auctionator's, times the share that sold.
 -- Returns factor, sale record (or nil).
 function ns.SellFactor(itemID)
-	local l = ledger()
-	local s = l and l.sales[ns.ItemName(itemID)]
+	local s = ns.SalesRecord(itemID)
 	if not s or not enabled() then return 1, s end
 	local ratio = (s.expNet > 0) and clamp(s.expFor / s.expNet, 0.1, 2) or 1
 	local offered = s.units + s.expired
@@ -200,16 +233,14 @@ end
 
 -- Multiplier for a reagent's AH cost: what you actually paid vs the scanned minimum. Returns factor, record.
 function ns.BuyFactor(itemID)
-	local l = ledger()
-	local b = l and l.buys[ns.ItemName(itemID)]
+	local b = combined("buys", ns.ItemName(itemID))
 	if not b or not enabled() or b.expected <= 0 then return 1, b end
 	return clamp(blend(clamp(b.paidFor / b.expected, 0.5, 3), b.events), 0.5, 3), b
 end
 
--- Measured seconds per craft of a product (needs a few timed crafts), or nil.
+-- Measured seconds per craft of a product (needs a few timed crafts, yours or friends'), or nil.
 function ns.CraftSeconds(itemID)
-	local l = ledger()
-	local c = l and l.crafts[itemID]
+	local c = combined("crafts", itemID)
 	if c and c.gaps >= 5 and enabled() then return c.seconds / c.gaps, c end
 end
 

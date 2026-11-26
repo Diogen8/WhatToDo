@@ -11,8 +11,10 @@ local function coinText(copper)
 	return ns.Coin(copper)
 end
 
+local lastTotal = 0
 local function statusText(count)
 	local parts = {}
+	if ns.shareStatus then return "|cff66ccff" .. ns.shareStatus .. "|r" end
 	parts[#parts + 1] = ns.HasAuctionator() and T("Auctionator: є") or T("|cffff6666Auctionator: немає|r")
 	parts[#parts + 1] = ns.HasYield() and T("Yield: є") or T("|cffff6666Yield: немає|r")
 	local recipes, chars = ns.RecipeCount()
@@ -189,6 +191,7 @@ function ns.Refresh()
 	frame.content:SetHeight(math.max(1, y))
 	frame.empty:SetText(emptyText())
 	frame.empty:SetShown(total == 0 and filter == "all")
+	lastTotal = total
 	frame.status:SetText(statusText(total))
 	for key, b in pairs(frame.tabs) do
 		if key == filter then b:LockHighlight() else b:UnlockHighlight() end
@@ -256,6 +259,22 @@ local function create()
 
 	f.status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	f.status:SetPoint("BOTTOMLEFT", 14, 10)
+	f.status:SetPoint("RIGHT", f, "RIGHT", -190, 0)
+	f.status:SetJustifyH("LEFT")
+	f.status:SetWordWrap(false)
+
+	local share = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	share:SetSize(170, 20)
+	share:SetPoint("BOTTOMRIGHT", -12, 6)
+	share:SetScript("OnClick", function() ns.ShareWithTarget() end)
+	share:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:AddLine(T("Поділитися даними з ціллю"))
+		GameTooltip:AddLine(T("Ціль: гравець з вашої групи, поруч, з тією самою версією WhatToDo. Він має підтвердити прийом."), 0.8, 0.8, 0.8, true)
+		GameTooltip:Show()
+	end)
+	share:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	f.shareButton = share
 
 	f:SetScript("OnShow", ns.Refresh)
 	frame = f
@@ -270,9 +289,15 @@ function ns.ApplyLanguage()
 		frame.titleText:SetText(T("WhatToDo - найвигідніше за годину"))
 		for _, b in pairs(frame.tabs) do b:SetText(T(b.label)) end
 		frame.refreshButton:SetText(T("Оновити"))
+		frame.shareButton:SetText(T("Поділитися з ціллю"))
 		frame.langButton:SetText(ns.Lang() == "en" and "UA" or "EN") -- the language a click switches to
 	end
 	ns.Refresh()
+end
+
+-- Just the status line (share progress), without rebuilding the list.
+function ns.RefreshStatus()
+	if frame and frame:IsShown() then frame.status:SetText(statusText(lastTotal)) end
 end
 
 function ns.SetLanguage(lang)
@@ -384,6 +409,16 @@ SlashCmdList.WHATTODO = function(msg)
 		else
 			ns.Out("/wtd lang en | /wtd lang uk")
 		end
+	elseif cmd == "share" then
+		ns.ShareWithTarget()
+	elseif cmd == "shared" then
+		if rest:match("^clear") then
+			ns.ForgetShared(rest:match("^clear%s+(%S+)"))
+			ns.Out(T("отримані дані забуто."))
+		else
+			ns.Out(T("дані, якими з вами поділились:"))
+			ns.SharedReport()
+		end
 	elseif cmd == "version" then
 		ns.Out(T("версія ") .. ns.VERSION .. (ns.UpdateNotice and ns.UpdateNotice() and (", " .. ns.UpdateNotice()) or T(", новішої у друзів поки не бачили")))
 	elseif cmd == "stats" then
@@ -397,7 +432,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out(T("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій."))
 	else
-		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
+		ns.Out(T("/wtd - вікно, /wtd top [n] - топ у чат, /wtd set - налаштування, /wtd check <предмет> - чому (не) пропонується, /wtd debug, /wtd version, /wtd lang en|uk - мова, /wtd minimap - сховати/показати кнопку, /wtd stats - факт продажів, /wtd share - поділитися з ціллю, /wtd shared [clear [нік]] - отримані дані, /wtd reset, /wtd ledger reset, /wtd forget - забути рецепти персонажа"))
 	end
 end
 

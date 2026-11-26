@@ -90,7 +90,8 @@ local function evaluate(entry)
 	tip[#tip + 1] = { " ", " " }
 	if sold and sold.units + sold.expired > 0 then
 		local offered = sold.units + sold.expired
-		tip[#tip + 1] = { T("Факт продажів"), string.format(T("продано %d з %d (%.0f%%)"), sold.units, offered, sold.units / offered * 100) }
+		tip[#tip + 1] = { T("Факт продажів"), string.format(T("продано %d з %d (%.0f%%)"), math.floor(sold.units + 0.5), math.floor(offered + 0.5), sold.units / offered * 100)
+			.. ((sold.friends or 0) > 0 and (sold.own and T(", з даними друзів") or T(", лише дані друзів")) or "") }
 		if sold.expNet > 0 then tip[#tip + 1] = { T("Ціна факт / очікувана"), string.format("%.0f%%", sold.expFor / sold.expNet * 100) } end
 	else
 		tip[#tip + 1] = { T("Факт продажів"), T("ще немає") }
@@ -98,8 +99,9 @@ local function evaluate(entry)
 	if measured then tip[#tip + 1] = { T("Час на крафт (факт)"), string.format(T("%.1f с"), measured) } end
 	tip[#tip + 1] = { T("Без поправок було б"), ns.Coin(expectedPerHour) .. T("/год") }
 	tip[#tip + 1] = { T("Довіра"), string.format("%d%%: ", math.floor(trust * 100 + 0.5)) .. ns.TrustExplain(priceTrust, evidence,
-		salesCount > 0 and string.format(T("продажів: %d"), salesCount) or T("ще жодного продажу")) }
-	tip[#tip + 1] = { T("Найстаріша ціна"), string.format(T("%s, %s тому"), ns.ItemName(stalestItem), ns.AgeText(stalestHours)) }
+		salesCount > 0 and string.format(T("продажів: %s"), salesCount % 1 == 0 and tostring(salesCount) or string.format("%.1f", salesCount)) or T("ще жодного продажу")) }
+	tip[#tip + 1] = { T("Найстаріша ціна"), string.format(T("%s, %s тому"), ns.ItemName(stalestItem), ns.AgeText(stalestHours))
+		.. (ns.PriceFrom(stalestItem) and string.format(T(" (скан %s)"), ns.PriceFrom(stalestItem)) or "") }
 	tip[#tip + 1] = { entry.section == "learn" and T("Вивчити") or T("Професія"), need }
 	tip[#tip + 1] = { entry.section == "learn" and T("Вільний слот у") or T("Хто може"), who }
 	if r.catalog then tip[#tip + 1] = { T("Джерело рецепта"), T("каталог (у тренера)") } end

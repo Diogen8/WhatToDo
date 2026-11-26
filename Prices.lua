@@ -17,8 +17,9 @@ local function api(fn, itemID)
 end
 
 -- Lowest buyout Auctionator last saw (copper per unit) and how many days ago it was scanned.
--- age nil with a price: older than Auctionator's history window.
-function ns.AuctionPrice(itemID)
+-- age nil with a price: older than Auctionator's history window. (ns.AuctionPrice, below, also weighs
+-- prices friends shared.)
+local function ownAuctionPrice(itemID)
 	local price = api("GetAuctionPriceByItemID", itemID)
 	if type(price) ~= "number" or price <= 0 then return nil end
 	local age = api("GetAuctionAgeByItemID", itemID)
@@ -32,7 +33,7 @@ function ns.VendorBuyPrice(itemID)
 end
 
 -- Units listed on the most recent scan day, or nil when unknown.
-function ns.Available(itemID)
+local function ownAvailable(itemID)
 	if not ns.HasAuctionator() or not Auctionator.Database.GetPriceHistory then return nil end
 	local ok, history = pcall(Auctionator.Database.GetPriceHistory, Auctionator.Database, tostring(itemID))
 	if not ok or type(history) ~= "table" then return nil end
@@ -105,14 +106,14 @@ local function lastFullScan()
 	return math.max(sv.TimeOfLastReplicateScan or 0, sv.TimeOfLastGetAllScan or 0, sv.TimeOfLastBrowseScan or 0)
 end
 
--- How many hours old an item's AH price is (an upper bound when not recorded exactly), and whether exact.
+-- How many hours old your own AH price is (an upper bound when not recorded exactly), and whether exact.
 -- nil without a price.
-function ns.PriceHours(itemID)
+local function ownHours(itemID)
 	ns.HookAuctionatorDB()
 	local now = time()
 	local seen = WhatToDoDB and WhatToDoDB.priceSeen and WhatToDoDB.priceSeen[tostring(itemID)]
 	if seen then return (now - seen) / 3600, true end
-	local price, ageDays = ns.AuctionPrice(itemID)
+	local price, ageDays = ownAuctionPrice(itemID)
 	if not price then return nil end
 	if not ageDays then return math.huge, false end
 	local day0 = Auctionator.Constants and Auctionator.Constants.SCAN_DAY_0
@@ -123,6 +124,65 @@ function ns.PriceHours(itemID)
 	local full = lastFullScan()
 	if full >= dayStart and full < dayStart + 86400 then since = full end
 	return (now - since) / 3600, false
+end
+
+-- The freshest price a friend shared for the item (Share.lua): { p = price, t = scan time, a = listed, from }.
+local function sharedPrice(itemID)
+	local best
+	for sender, data in pairs((WhatToDoDB and WhatToDoDB.shared) or {}) do
+		local e = data.prices and data.prices[itemID]
+		if e and (not best or e.t > best.t) then
+			best = { p = e.p, t = e.t, a = e.a, from = sender }
+		end
+	end
+	return best
+end
+
+-- The price to use: your own, or a friend's when theirs was scanned more recently.
+-- Returns price, hours old, exact, shared entry (or nil), own age in days.
+local function bestPrice(itemID)
+	local price, ageDays = ownAuctionPrice(itemID)
+	local hours, exact
+	if price then hours, exact = ownHours(itemID) end
+	local shared = sharedPrice(itemID)
+	if shared then
+		local sharedHours = math.max(0, (time() - shared.t) / 3600)
+		if not price or (hours or math.huge) > sharedHours then
+			return shared.p, sharedHours, true, shared, math.floor(sharedHours / 24)
+		end
+	end
+	if price then return price, hours, exact, nil, ageDays end
+end
+
+function ns.AuctionPrice(itemID)
+	local price, _, _, _, ageDays = bestPrice(itemID)
+	if price then return price, ageDays end
+end
+
+function ns.PriceHours(itemID)
+	local price, hours, exact = bestPrice(itemID)
+	if price then return hours, exact end
+end
+
+function ns.Available(itemID)
+	local price, _, _, shared = bestPrice(itemID)
+	if shared then return shared.a end
+	return ownAvailable(itemID)
+end
+
+-- Who scanned the price in use, when it came from a friend; nil for your own.
+function ns.PriceFrom(itemID)
+	local price, _, _, shared = bestPrice(itemID)
+	return shared and shared.from
+end
+
+-- For sharing: your own exact price snapshot { p, t, a } of an item, scanned within maxHours, or nil.
+function ns.OwnPriceSnapshot(itemID, maxHours)
+	local seen = WhatToDoDB and WhatToDoDB.priceSeen and WhatToDoDB.priceSeen[tostring(itemID)]
+	if not seen or time() - seen > maxHours * 3600 then return nil end
+	local price = ownAuctionPrice(itemID)
+	if not price then return nil end
+	return { p = price, t = seen, a = ownAvailable(itemID) }
 end
 
 function ns.TrustOfHours(hours)
@@ -155,10 +215,9 @@ function ns.EvidenceOfSales(n)
 	return n / (n + 3)
 end
 
--- Times an item was actually sold (ledger, every character), 0 if never.
+-- Times an item was actually sold: every character's, plus friends' shared sales at half weight. 0 if never.
 function ns.SalesCount(itemID)
-	local l = ns.Ledger and ns.Ledger()
-	local s = l and l.sales[ns.ItemName(itemID)]
+	local s = ns.SalesRecord and ns.SalesRecord(itemID)
 	return s and s.events or 0
 end
 

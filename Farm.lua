@@ -67,9 +67,11 @@ local function sourceName(db, key)
 	return key
 end
 
-function ns.FarmActivities()
+-- Every spot from Yield (all characters) and, when includeShared, from data friends shared (Share.lua):
+-- spots[mapID .. "\t" .. subzone] = { mapID, subzone, seconds, chars = { name = seconds }, cats = { cat = {
+--   money, count, items = { id = n }, sources = { key = n } } }, zoneName (shared spots) }.
+function ns.CollectSpots(includeShared)
 	local db = yieldDB()
-	if not db or type(db.characters) ~= "table" then return {} end
 
 	-- Each spot's income split by where it came from (its category):
 	--   farm: mob loot and coin, chests and containers; mining, herbalism, fishing: those gathers;
@@ -129,11 +131,49 @@ function ns.FarmActivities()
 			end
 		end
 	end
-	for _, char in pairs(db.characters) do
-		local name = char.name or "?"
-		for _, ds in ipairs(char.sessions or {}) do addDataset(ds, name) end
-		if char.live then addDataset(char.live, name) end
+	if db and type(db.characters) == "table" then
+		for _, char in pairs(db.characters) do
+			local name = char.name or "?"
+			for _, ds in ipairs(char.sessions or {}) do addDataset(ds, name) end
+			if char.live then addDataset(char.live, name) end
+		end
 	end
+
+	-- friends' spots: { m = mapID, z = subzone, zn = zone name, s = seconds, c = { cat = { mo, n, i = { id = n } } } }
+	if includeShared then
+		for sender, data in pairs((WhatToDoDB and WhatToDoDB.shared) or {}) do
+			for _, sp in ipairs(data.spots or {}) do
+				local s = spot(sp.m, sp.z)
+				s.seconds = s.seconds + sp.s
+				s.zoneName = s.zoneName or sp.zn
+				local who = sender .. "*"
+				s.chars[who] = (s.chars[who] or 0) + sp.s
+				for cat, c in pairs(sp.c or {}) do
+					local into = category(s, cat)
+					into.money = into.money + (c.mo or 0)
+					into.count = into.count + (c.n or 0)
+					addItems(into.items, c.i)
+				end
+			end
+		end
+	end
+	return spots, db
+end
+
+-- A spot's display name: Yield's or the game's zone name, the shared one, else the map ID.
+function ns.SpotZoneName(db, s)
+	if db then
+		local names = db.names and db.names.zones
+		if names and names[s.mapID] then return names[s.mapID] end
+	end
+	if s.zoneName then return s.zoneName end
+	return zoneName(db or {}, s.mapID)
+end
+
+function ns.FarmActivities()
+	local spots, db = ns.CollectSpots(true)
+	if not next(spots) then return {} end
+	db = db or { names = {} }
 
 	local yield, cache = yieldAddon(), {}
 	local minSeconds = ns.Setting("minFarmMinutes") * 60
@@ -141,7 +181,7 @@ function ns.FarmActivities()
 	for _, s in pairs(spots) do
 		if s.seconds >= minSeconds then
 			local hours = s.seconds / 3600
-			local zone = zoneName(db, s.mapID)
+			local zone = ns.SpotZoneName(db, s)
 			local title = (s.subzone ~= "" and s.subzone ~= zone) and (zone .. ": " .. s.subzone) or zone
 			local chars = {}
 			for name in pairs(s.chars) do chars[#chars + 1] = name end
