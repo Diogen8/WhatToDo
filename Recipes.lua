@@ -38,19 +38,32 @@ local function castMsOf(spellID)
 	end
 end
 
-local function scan()
-	if not (GetTradeSkillLine and GetNumTradeSkills and WhatToDoDB) then return end
-	local profession = GetTradeSkillLine()
-	if not profession or profession == "UNKNOWN" then return end
-	local n = GetNumTradeSkills() or 0
-	if n == 0 then return end
-
+-- One recipe into the character's list for its profession. Returns true when it's new.
+local function store(profession, name, product, made, reagents, castMs, onCooldown)
 	local char = WhatToDoDB.recipes[ns.CharKey()] or {}
 	WhatToDoDB.recipes[ns.CharKey()] = char
 	local known = char[profession] or {}
 	char[profession] = known
+	local old = known[name]
+	known[name] = {
+		product = product,
+		made = made,
+		reagents = reagents,
+		castMs = castMs,
+		-- sticky: a recipe seen on cooldown once (transmutes, Mooncloth) has one
+		cooldown = (old and old.cooldown) or onCooldown or nil,
+	}
+	return old == nil
+end
 
-	local added = 0
+-- The old trade skill API (Classic Era): GetTradeSkillLine, GetNumTradeSkills, GetTradeSkillInfo, ...
+local function scanLegacy()
+	if not (GetTradeSkillLine and GetNumTradeSkills and GetTradeSkillInfo) then return nil end
+	local profession = GetTradeSkillLine()
+	if not profession or profession == "UNKNOWN" then return nil end
+	local n = GetNumTradeSkills() or 0
+	if n == 0 then return nil end
+	local added, seen = 0, 0
 	for i = 1, n do
 		local name, kind = GetTradeSkillInfo(i)
 		if name and kind ~= "header" and kind ~= "subheader" then
@@ -63,28 +76,100 @@ local function scan()
 				reagents[#reagents + 1] = { reagent, count }
 			end
 			if product and complete and #reagents > 0 then
+				seen = seen + 1
 				local minMade, maxMade = GetTradeSkillNumMade(i)
 				minMade = minMade or 1
 				local spellID
 				local recipeLink = GetTradeSkillRecipeLink and GetTradeSkillRecipeLink(i)
 				if recipeLink then spellID = tonumber(recipeLink:match("enchant:(%d+)") or recipeLink:match("spell:(%d+)")) end
 				local cooldown = GetTradeSkillCooldown and GetTradeSkillCooldown(i)
-				local old = known[name]
-				if not old then added = added + 1 end
-				known[name] = {
-					product = product,
-					made = (minMade + (maxMade or minMade)) / 2,
-					reagents = reagents,
-					castMs = castMsOf(spellID),
-					-- sticky: a recipe seen on cooldown once (transmutes, Mooncloth) has one
-					cooldown = (old and old.cooldown) or (cooldown and cooldown > 0) or nil,
-				}
+				if store(profession, name, product, (minMade + (maxMade or minMade)) / 2, reagents, castMsOf(spellID), cooldown and cooldown > 0) then
+					added = added + 1
+				end
 			end
 		end
 	end
-	char._scanned = time()
+	return profession, added, seen
+end
+
+-- The modern trade skill API (WoW Forever uses it): C_TradeSkillUI recipe IDs and schematics.
+local function call(f, ...)
+	if not f then return nil end
+	local ok, a = pcall(f, ...)
+	if ok then return a end
+end
+
+local function modernProfession()
+	local T = C_TradeSkillUI
+	for _, getter in ipairs({ "GetBaseProfessionInfo", "GetChildProfessionInfo" }) do
+		local info = call(T[getter])
+		local name = type(info) == "table" and (info.parentProfessionName or info.professionName)
+		if name and name ~= "" then return name end
+	end
+	local name = call(GetTradeSkillLine)
+	if name and name ~= "" and name ~= "UNKNOWN" then return name end
+end
+
+local function scanModern()
+	local T = C_TradeSkillUI
+	if not (T and T.GetAllRecipeIDs and T.GetRecipeSchematic) then return nil end
+	local ids = call(T.GetAllRecipeIDs)
+	if type(ids) ~= "table" or #ids == 0 then return nil end
+	local profession = modernProfession()
+	if not profession then return nil end
+	local added, seen = 0, 0
+	for _, recipeID in ipairs(ids) do
+		local info = T.GetRecipeInfo and call(T.GetRecipeInfo, recipeID)
+		if not (type(info) == "table" and info.learned == false) then
+			local schematic = call(T.GetRecipeSchematic, recipeID, false)
+			local product = type(schematic) == "table" and schematic.outputItemID
+			if product then
+				local reagents, complete = {}, true
+				for _, slot in ipairs(schematic.reagentSlotSchematics or {}) do
+					-- basic reagents only (type 1); optional / finishing slots don't block a craft
+					local basic = slot.reagentType == nil or slot.reagentType == 1
+					if basic and slot.required ~= false then
+						local first = slot.reagents and slot.reagents[1]
+						local reagent = first and first.itemID
+						if not reagent or not slot.quantityRequired then complete = false break end
+						reagents[#reagents + 1] = { reagent, slot.quantityRequired }
+					end
+				end
+				if complete and #reagents > 0 then
+					seen = seen + 1
+					local minMade = schematic.quantityMin or 1
+					local maxMade = schematic.quantityMax or minMade
+					local cooldown = T.GetRecipeCooldown and call(T.GetRecipeCooldown, recipeID)
+					local name = schematic.name or (type(info) == "table" and info.name) or ("recipe " .. recipeID)
+					if store(profession, name, product, (minMade + maxMade) / 2, reagents, castMsOf(recipeID), type(cooldown) == "number" and cooldown > 0) then
+						added = added + 1
+					end
+				end
+			end
+		end
+	end
+	return profession, added, seen
+end
+
+ns.lastScan = nil -- what the last scan found, for /wtd debug
+
+local function scan()
+	if not WhatToDoDB then return end
+	local profession, added, seen = scanModern()
+	local api = "C_TradeSkillUI"
+	if not profession then
+		profession, added, seen = scanLegacy()
+		api = "legacy"
+	end
+	if not profession then
+		ns.lastScan = { time = time(), result = "nothing read" }
+		return
+	end
+	local char = WhatToDoDB.recipes[ns.CharKey()]
+	if char then char._scanned = time() end
+	ns.lastScan = { time = time(), api = api, profession = profession, seen = seen, added = added }
 	if added > 0 then
-		ns.Out(string.format("%s: +%d recipes recorded.", profession, added))
+		ns.Out(string.format("%s: +%d рецептів записано.", profession, added))
 		if ns.Refresh then ns.Refresh() end
 	end
 end
@@ -99,9 +184,13 @@ local function scheduleScan()
 	end)
 end
 
+-- Events differ between clients; an unknown event name errors, so each is tried on its own.
+local function register(frame, events)
+	for _, event in ipairs(events) do pcall(frame.RegisterEvent, frame, event) end
+end
+
 local f = CreateFrame("Frame")
-f:RegisterEvent("TRADE_SKILL_SHOW")
-f:RegisterEvent("TRADE_SKILL_UPDATE")
+register(f, { "TRADE_SKILL_SHOW", "TRADE_SKILL_UPDATE", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_DATA_SOURCE_CHANGED" })
 f:SetScript("OnEvent", scheduleScan)
 
 -- The trade skill window's name for a profession, when it isn't the skill's own (Mining opens "Smelting").
@@ -113,13 +202,37 @@ local WINDOW_TO_SKILL = { Smelting = "Mining" }
 -- logged out. A collapsed header hides lines: then what's seen is merged in and nothing is dropped.
 ---------------------------------------------------------------------------
 
+-- The skill list as { name, isHeader, collapsed, rank } rows: C_SkillInfo on WoW Forever (it replaced the
+-- global skill line API), the old globals elsewhere. nil when neither exists.
+local function skillLines()
+	local rows = {}
+	if C_SkillInfo and C_SkillInfo.GetNumSkillLines and C_SkillInfo.GetSkillLineInfo then
+		for i = 1, call(C_SkillInfo.GetNumSkillLines) or 0 do
+			local line = call(C_SkillInfo.GetSkillLineInfo, i)
+			if type(line) == "table" then
+				rows[#rows + 1] = { name = line.name, isHeader = line.isHeader, collapsed = line.isHeader and line.isCollapsed, rank = line.rank }
+			end
+		end
+		return rows, "C_SkillInfo"
+	end
+	if GetNumSkillLines and GetSkillLineInfo then
+		for i = 1, GetNumSkillLines() or 0 do
+			local name, isHeader, isExpanded, rank = GetSkillLineInfo(i)
+			rows[#rows + 1] = { name = name, isHeader = isHeader, collapsed = isHeader and not isExpanded, rank = rank }
+		end
+		return rows, "legacy"
+	end
+end
+ns.SkillLines = skillLines
+
 local function recordSkills()
-	if not (WhatToDoDB and GetNumSkillLines and GetSkillLineInfo) then return end
+	if not WhatToDoDB then return end
+	local rows = skillLines()
+	if not rows then return end
 	local seen, complete = {}, true
-	for i = 1, GetNumSkillLines() or 0 do
-		local name, isHeader, isExpanded, rank = GetSkillLineInfo(i)
-		if isHeader and not isExpanded then complete = false end
-		if name and not isHeader and (ns.PRIMARY[name] or ns.SECONDARY[name]) then seen[name] = rank or 0 end
+	for _, row in ipairs(rows) do
+		if row.collapsed then complete = false end
+		if row.name and not row.isHeader and (ns.PRIMARY[row.name] or ns.SECONDARY[row.name]) then seen[row.name] = row.rank or 0 end
 	end
 	WhatToDoDB.chars = WhatToDoDB.chars or {}
 	local key = ns.CharKey()
@@ -135,18 +248,32 @@ local function recordSkills()
 	c.updated = time()
 	-- a profession dropped: its recorded recipes go too
 	if complete and WhatToDoDB.recipes[key] then
-		for profession in pairs(WhatToDoDB.recipes[key]) do
-			if profession ~= "_scanned" and not seen[WINDOW_TO_SKILL[profession] or profession] then
+		for profession, list in pairs(WhatToDoDB.recipes[key]) do
+			if type(list) == "table" and not seen[WINDOW_TO_SKILL[profession] or profession] then
 				WhatToDoDB.recipes[key][profession] = nil
 			end
 		end
 	end
+	if ns.Refresh then ns.Refresh() end
+end
+ns.RecordSkills = recordSkills
+
+-- "Diogen (Blacksmithing 210, Mining 230), Trader (—)" for messages.
+function ns.KnownCharsText()
+	local parts = {}
+	for _, c in pairs((WhatToDoDB and WhatToDoDB.chars) or {}) do
+		local profs = {}
+		for name, rank in pairs(c.professions or {}) do profs[#profs + 1] = string.format("%s %d", name, rank) end
+		table.sort(profs)
+		parts[#parts + 1] = string.format("%s (%s)", c.name or "?", #profs > 0 and table.concat(profs, ", ") or "—")
+	end
+	table.sort(parts)
+	return #parts > 0 and table.concat(parts, "; ") or "ще жодного (зайдіть кожним персонажем)"
 end
 
 local skillsScheduled = false
 local sk = CreateFrame("Frame")
-sk:RegisterEvent("PLAYER_ENTERING_WORLD")
-sk:RegisterEvent("SKILL_LINES_CHANGED")
+register(sk, { "PLAYER_ENTERING_WORLD", "SKILL_LINES_CHANGED", "SKILL_LINE_SPECS_RANKS_CHANGED" })
 sk:SetScript("OnEvent", function()
 	if skillsScheduled then return end
 	skillsScheduled = true

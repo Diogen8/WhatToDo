@@ -308,6 +308,26 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.settings.minimapHide = (ns.Setting("minimapHide") == 1) and 0 or 1
 		ns.UpdateMinimapButton()
 		ns.Out(ns.Setting("minimapHide") == 1 and "кнопку біля мінікарти сховано (/wtd minimap — повернути)." or "кнопку біля мінікарти показано.")
+	elseif cmd == "check" and rest ~= "" then
+		ns.Out("чому пропонується чи ні: " .. rest)
+		ns.Explain(rest)
+	elseif cmd == "debug" then
+		local function has(x) return x and "так" or "ні" end
+		ns.Out("діагностика:")
+		print("  навички: C_SkillInfo " .. has(C_SkillInfo and C_SkillInfo.GetSkillLineInfo) .. ", старий API " .. has(GetSkillLineInfo))
+		print("  рецепти: C_TradeSkillUI " .. has(C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs) .. ", старий API " .. has(GetTradeSkillLine))
+		local rows, api = ns.SkillLines()
+		print(string.format("  рядків навичок: %s (%s)", rows and #rows or "немає", api or "-"))
+		print("  персонажі: " .. ns.KnownCharsText())
+		local recipes = ns.RecipeCount()
+		print(string.format("  записаних рецептів: %d", recipes))
+		local ls = ns.lastScan
+		if ls then
+			print(string.format("  останнє читання вікна професії: %s", ls.profession and string.format("%s через %s, %d рецептів (+%d нових)", ls.profession, ls.api, ls.seen or 0, ls.added or 0) or ls.result))
+		else
+			print("  вікно професії в цій сесії не відкривалось")
+		end
+		print("  Auctionator: " .. has(ns.HasAuctionator()) .. ", Yield: " .. has(ns.HasYield()))
 	elseif cmd == "stats" then
 		ns.LedgerReport()
 	elseif cmd == "ledger" and rest == "reset" then
@@ -319,7 +339,7 @@ SlashCmdList.WHATTODO = function(msg)
 		WhatToDoDB.chars[ns.CharKey()] = nil
 		ns.Out("рецепти й професії цього персонажа забуто; вони запишуться знову з вікна навичок і професій.")
 	else
-		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd minimap — сховати/показати кнопку · /wtd stats — факт продажів · /wtd reset · /wtd ledger reset · /wtd forget — забути рецепти персонажа")
+		ns.Out("/wtd — вікно · /wtd top [n] — топ у чат · /wtd set — налаштування · /wtd check <предмет> — чому (не) пропонується · /wtd debug · /wtd minimap — сховати/показати кнопку · /wtd stats — факт продажів · /wtd reset · /wtd ledger reset · /wtd forget — забути рецепти персонажа")
 	end
 end
 

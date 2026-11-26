@@ -7,11 +7,12 @@ local _, ns = ...
 
 local function evaluate(entry)
 	local r = entry.recipe
-	if r.cooldown then return nil end
+	if r.cooldown then return nil, "рецепт має кулдаун" end
 	local maxAge = ns.Setting("maxPriceAgeDays")
 
 	local net, gross, age = ns.SellNet(r.product)
-	if not net or (age or math.huge) > maxAge then return nil end
+	if not net then return nil, "немає ціни продукту в Auctionator (проскануйте аукціон)" end
+	if (age or math.huge) > maxAge then return nil, string.format("ціна продукту застаріла: %s дн. (ліміт %d)", age and tostring(age) or ">21", maxAge) end
 	local made = r.made or 1
 	local sellFactor, sold = ns.SellFactor(r.product)
 	local expectedRevenue = net * made
@@ -21,10 +22,10 @@ local function evaluate(entry)
 	for _, rg in ipairs(r.reagents) do
 		local id, count = rg[1], rg[2]
 		local unit, source, rAge = ns.BuyCost(id)
-		if not unit then return nil end
+		if not unit then return nil, "немає ціни реагенту " .. ns.ItemName(id) .. " (ні аукціон, ні вендор)" end
 		local buyFactor = 1
 		if source == "AH" then
-			if (rAge or math.huge) > maxAge then return nil end
+			if (rAge or math.huge) > maxAge then return nil, string.format("ціна реагенту %s застаріла: %s дн.", ns.ItemName(id), rAge and tostring(rAge) or ">21") end
 			buyFactor = ns.BuyFactor(id)
 			local listed = ns.Available(id)
 			if listed then supply = math.min(supply, math.floor(listed * ns.Setting("supplyShare") / count)) end
@@ -35,10 +36,10 @@ local function evaluate(entry)
 	end
 
 	local profit = revenue - cost
-	if profit < ns.Setting("minProfit") then return nil end
+	if profit < ns.Setting("minProfit") then return nil, string.format("прибуток за крафт %s < мінімуму %s (продаж %s, реагенти %s)", ns.Coin(profit), ns.Coin(ns.Setting("minProfit")), ns.Coin(revenue), ns.Coin(cost)) end
 
 	local crafts = math.min(ns.Setting("maxBatch"), supply)
-	if crafts < 1 then return nil end
+	if crafts < 1 then return nil, "на аукціоні замало реагентів для хоча б одного крафту" end
 	local castSeconds = (r.castMs and r.castMs > 0) and (r.castMs / 1000) or (r.castMs == 0 and 0 or ns.Setting("craftSeconds"))
 	local estimatedPerCraft = castSeconds + ns.Setting("craftOverhead")
 	local measured = ns.CraftSeconds(r.product)
@@ -98,6 +99,43 @@ local function evaluate(entry)
 		profit = profit,
 		crafts = crafts,
 	}
+end
+
+-- /wtd check <item name or ID>: why each recipe making that item is or isn't suggested.
+function ns.Explain(query)
+	local id = tonumber(query)
+	local q = (query or ""):lower()
+	local found = 0
+	for _, entry in ipairs(ns.AllRecipes()) do
+		local r = entry.recipe
+		local name = ns.ItemName(r.product)
+		if r.product == id or (q ~= "" and name:lower():find(q, 1, true)) then
+			found = found + 1
+			local who = (#entry.who > 0) and table.concat(entry.who, ", ") or "будь-хто"
+			local a, reason = evaluate(entry)
+			local head = string.format("%s [%s, %s]", name, entry.section == "learn" and "якщо вивчити" or "рекрафт", who)
+			if a then
+				print(string.format("  %s: |cff66ff66пропонується|r — %s/год, %s", head, ns.Coin(a.perHour), a.detail))
+			else
+				print(string.format("  %s: |cffff6666ні|r — %s", head, reason or "?"))
+			end
+		end
+	end
+	if found == 0 then
+		local needs = {}
+		for _, r in ipairs(ns.CATALOG) do
+			local name = ns.ItemName(r.product)
+			if r.product == id or (q ~= "" and name:lower():find(q, 1, true)) then
+				needs[#needs + 1] = string.format("%s — потрібно %s %d", name, r.profession, r.skill)
+			end
+		end
+		if #needs > 0 then
+			print("  ніхто з персонажів поки не може: " .. table.concat(needs, "; "))
+		else
+			print("  жоден відомий рецепт цього не робить (відкрийте вікно професії, щоб записати рецепти).")
+		end
+		print("  персонажі: " .. ns.KnownCharsText())
+	end
 end
 
 function ns.CraftActivities()
