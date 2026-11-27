@@ -6,7 +6,9 @@
 local _, ns = ...
 local T = function(s) return ns.T(s) end
 
-local function evaluate(entry)
+-- forecastOnly: for a batch you craft on your own (Episodes.lua), model 1's view even when the recipe isn't
+-- suggested - no minimum profit, no hiding of losing ones, at least one craft.
+local function evaluate(entry, forecastOnly)
 	local r = entry.recipe
 	if r.cooldown then return nil, T("рецепт має кулдаун") end
 	local maxAge = ns.Setting("maxPriceAgeDays")
@@ -44,6 +46,7 @@ local function evaluate(entry)
 	end
 
 	local crafts = math.min(ns.Setting("maxBatch"), supply)
+	if forecastOnly then crafts = math.max(crafts, 1) end
 	if crafts < 1 then return nil, T("на аукціоні замало реагентів для хоча б одного крафту") end
 	-- no bigger than the market takes in the 2 days a batch has
 	local cap = ns.DemandCap and ns.DemandCap(r.product, made)
@@ -83,7 +86,7 @@ local function evaluate(entry)
 	local trust = ns.CombineTrust(priceTrust, evidence)
 
 	local profit = revenue - cost
-	if profit < ns.Setting("minProfit") then return nil, string.format(T("прибуток за крафт %s < мінімуму %s (продаж %s, реагенти %s)"), ns.Coin(profit), ns.Coin(ns.Setting("minProfit")), ns.Coin(revenue), ns.Coin(cost)) end
+	if profit < ns.Setting("minProfit") and not forecastOnly then return nil, string.format(T("прибуток за крафт %s < мінімуму %s (продаж %s, реагенти %s)"), ns.Coin(profit), ns.Coin(ns.Setting("minProfit")), ns.Coin(revenue), ns.Coin(cost)) end
 
 	local castSeconds = (r.castMs and r.castMs > 0) and (r.castMs / 1000) or (r.castMs == 0 and 0 or ns.Setting("craftSeconds"))
 	local estimatedPerCraft = castSeconds + ns.Setting("craftOverhead")
@@ -113,7 +116,7 @@ local function evaluate(entry)
 	local p2, n2
 	if sim and ns.Model2Craft then p2, n2 = ns.Model2Craft(sim.success, stalestHours ~= math.huge and stalestHours or nil, r.product, crafts) end
 
-	if sim and sim.p90 <= 0 then
+	if sim and sim.p90 <= 0 and not forecastOnly then
 		return nil, string.format(T("модель: навіть оптимістичний сценарій у мінусі (%s - %s/год, у плюс %d%%)"),
 			ns.Coin(sim.p10), ns.Coin(sim.p90), math.floor(sim.success * 100 + 0.5))
 	end
@@ -256,6 +259,17 @@ function ns.Explain(query)
 			print(T("  жоден відомий рецепт цього не робить (відкрийте вікно професії, щоб записати рецепти)."))
 		end
 		print(T("  персонажі: ") .. ns.KnownCharsText())
+	end
+end
+
+-- Model 1's forecast for a product, suggested or not (the first of your recipes that makes it), or nil.
+function ns.ForecastProduct(product)
+	if not ns.HasAuctionator() then return nil end
+	for _, entry in ipairs(ns.AllRecipes()) do
+		if entry.section == "craft" and entry.recipe.product == product then
+			local a = evaluate(entry, true)
+			if a then return a end
+		end
 	end
 end
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.22.1
+- Batches you craft on your own teach the models too: when a batch starts, model 1's forecast is taken for the product whether WhatToDo suggests it or not (no minimum profit, losing recipes included). The "levelling" mark from 0.22.0 is gone.
+
 ## 0.22.0
 - Fix: a purchase that arrives as several mails (a stack, then single units) was booked once per mail at the whole price. Mails with the same item and price within a minute are now one purchase. Records from before are rebuilt once from the log, and the remaining purchase lots are scaled down to match; batches open at the time are kept but don't teach the models.
 - WhatToDo records your own AH posts (legacy and modern AH), so batches know when they were posted and sales know their unit count even when Auctionator's posting history stays empty.

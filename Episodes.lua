@@ -137,12 +137,12 @@ local function recipeFor(product)
 end
 
 -- The suggestion as it stood when the batch opened: what the model will later be checked against.
+-- Model 1's forecast when the batch starts: suggested or crafted on your own, both teach the models.
 local function forecastFor(product)
-	for _, a in ipairs(ns.Rank("craft")) do
-		if a.product == product then
-			return { perHour = a.perHour, profit = a.profit, crafts = a.crafts, trust = a.trust, p1 = a.p1,
-				priceTrust = a.priceTrust, priceHours = a.trustHours ~= math.huge and a.trustHours or nil }
-		end
+	local a = ns.ForecastProduct and ns.ForecastProduct(product)
+	if a then
+		return { perHour = a.perHour, profit = a.profit, crafts = a.crafts, trust = a.trust, p1 = a.p1,
+			priceTrust = a.priceTrust, priceHours = a.trustHours ~= math.huge and a.trustHours or nil }
 	end
 end
 
@@ -152,9 +152,6 @@ local function openBatch(e, product, recipe)
 		crafts = 0, crafted = 0, cost = 0, ownMats = 0, sold = 0, revenue = 0, returned = 0, posted = 0,
 		saleHours = 0, active = 0, forecast = forecastFor(product),
 	}
-	-- crafted though WhatToDo didn't suggest it (not listed, or less than nothing most likely): levelling
-	-- the profession, most likely. Its outcome is kept but doesn't teach the models about recraft.
-	b.levelling = not (b.forecast and (b.forecast.perHour or 0) > 0) or nil
 	e.nextId = e.nextId + 1
 	-- time spent buying its reagents shortly before
 	for _, rg in ipairs(recipe.reagents) do
@@ -179,7 +176,7 @@ local function closeBatch(e, b, now)
 		waitHours = b.sold > 0 and b.saleHours / b.sold or nil,
 		perActiveHour = b.active >= 60 and profit * 3600 / b.active or nil,
 		forecast = b.forecast,
-		levelling = b.levelling, untrusted = b.untrusted,
+		untrusted = b.untrusted,
 		success = profit > 0,
 	}
 	e.closed[#e.closed + 1] = outcome
@@ -360,10 +357,10 @@ function ns.ResultsReport()
 		print(string.format(T("  %s: %d крафтів, продано %d з %d, прибуток %s, %s - %s"),
 			ns.ItemName(o.product), o.crafts, o.sold, o.crafted, ns.Coin(o.profit),
 			o.perActiveHour and (ns.Coin(o.perActiveHour) .. T("/год активного часу")) or T("мало активного часу"),
-			(o.success and T("|cff66ff66у плюс|r") or T("|cffff6666у мінус|r")) .. (o.levelling and T(" (прокачка)") or "")))
+			(o.success and T("|cff66ff66у плюс|r") or T("|cffff6666у мінус|r"))))
 	end
 	for product, b in pairs(e.open) do
-		print(string.format(T("  відкрита: %s, скрафчено %d, продано %d, витрачено %s"), ns.ItemName(product), b.crafted, b.sold, ns.Coin(b.cost)) .. (b.levelling and T(" (прокачка)") or ""))
+		print(string.format(T("  відкрита: %s, скрафчено %d, продано %d, витрачено %s"), ns.ItemName(product), b.crafted, b.sold, ns.Coin(b.cost)))
 	end
 	local fok = 0
 	for _, r in ipairs(e.farm) do if r.success then fok = fok + 1 end end

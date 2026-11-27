@@ -107,9 +107,9 @@ local function craftRows()
 	for _, o in ipairs((e and e.closed) or {}) do
 		local f = o.forecast
 		local p1 = f and (f.p1 or f.trust) -- model 1's own chance (older batches kept only the shown one)
-		-- levelling crafts (not suggested) and batches costed by the pre-0.22 purchase overcount don't teach
-		local skip = o.levelling or o.untrusted or (f and (f.perHour or 0) <= 0)
-		if p1 and not skip then
+		-- every batch teaches, suggested or crafted on your own; only those costed by the pre-0.22 purchase
+		-- overcount don't
+		if p1 and not o.untrusted then
 			rows[#rows + 1] = { x = craftFeatures(p1, f.priceHours, o.product, f.crafts), y = o.success and 1 or 0, p1 = p1 }
 		end
 	end
