@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.0
+- Fix: a purchase that arrives as several mails (a stack, then single units) was booked once per mail at the whole price. Mails with the same item and price within a minute are now one purchase. Records from before are rebuilt once from the log, and the remaining purchase lots are scaled down to match; batches open at the time are kept but don't teach the models.
+- WhatToDo records your own AH posts (legacy and modern AH), so batches know when they were posted and sales know their unit count even when Auctionator's posting history stays empty.
+- Buying a batch climbs the listings: a materials purchase starts from the markup your own materials purchases paid over Auctionator's cheapest listing (1.3 until there are some), and each item's own purchases take over.
+- Crafts WhatToDo didn't suggest are marked as levelling: shown in /wtd results, not used to teach model 2.
+
 ## 0.21.1
 - Yield records only while its window is open unless "Record when Yield is closed" is on. WhatToDo now checks it: a reminder at login, Yield shown in yellow in the status line and the guide, and `/wtd yield` turns it on. README and the guide say so too.
 

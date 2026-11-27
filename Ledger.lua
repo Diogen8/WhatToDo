@@ -60,7 +60,10 @@ end
 -- of what you posted). A post whose stack value equals the sale wins; else the latest post's unit price.
 -- nil when there's no history - then the sale counts toward income but not the price comparison.
 local function unitsFromPostings(itemID, gross)
-	local history = type(AUCTIONATOR_POSTING_HISTORY) == "table" and itemID and AUCTIONATOR_POSTING_HISTORY[tostring(itemID)]
+	local history = itemID and WhatToDoDB and WhatToDoDB.posts and WhatToDoDB.posts[itemID]
+	if type(history) ~= "table" or #history == 0 then
+		history = type(AUCTIONATOR_POSTING_HISTORY) == "table" and itemID and AUCTIONATOR_POSTING_HISTORY[tostring(itemID)]
+	end
 	if type(history) ~= "table" or not gross or gross <= 0 then return nil end
 	local latest
 	for i = #history, 1, -1 do
@@ -123,6 +126,42 @@ local function recordBuy(name, itemID, units, paid)
 	if ns.EpisodeBuy and itemID then ns.EpisodeBuy(itemID, units, paid) end
 end
 
+-- One purchase can arrive as several mails (a stack of 20, then single units), and every one of their
+-- invoices carries the whole purchase's price. Mails with the same item and price within a minute are one
+-- purchase: their units add up and the price counts once, booked a few seconds after the last of them.
+local GROUP_WINDOW, GROUP_SETTLE = 60, 3
+local pendingBuys = {} -- "name|paid" -> { name, itemID, units, paid, first, seen }
+
+local function flushBuys(force)
+	local now = GetTime()
+	for key, g in pairs(pendingBuys) do
+		if force or now - g.seen >= GROUP_SETTLE then
+			pendingBuys[key] = nil
+			recordBuy(g.name, g.itemID, g.units, g.paid)
+		end
+	end
+end
+
+local function groupBuy(name, itemID, units, paid)
+	if not (name and paid and paid > 0) then return end
+	units = (units and units > 0) and units or 1
+	local key = name .. "|" .. paid
+	local g = pendingBuys[key]
+	local now = GetTime()
+	if g and now - g.first <= GROUP_WINDOW then
+		g.units, g.seen = g.units + units, now
+	else
+		if g then recordBuy(g.name, g.itemID, g.units, g.paid) end
+		pendingBuys[key] = { name = name, itemID = itemID, units = units, paid = paid, first = now, seen = now }
+	end
+	C_Timer.After(GROUP_SETTLE + 0.1, function() flushBuys(false) end)
+end
+
+local mailClose = CreateFrame("Frame")
+pcall(mailClose.RegisterEvent, mailClose, "MAIL_CLOSED")
+pcall(mailClose.RegisterEvent, mailClose, "PLAYER_LOGOUT")
+mailClose:SetScript("OnEvent", function() flushBuys(true) end)
+
 local recent = {} -- fingerprint -> GetTime() when booked
 
 local function processMail(index, what)
@@ -146,7 +185,7 @@ local function processMail(index, what)
 		local name, itemID, _, n
 		if GetInboxItem then name, itemID, _, n = GetInboxItem(index, 1) end
 		local paid = (bid and bid > 0) and bid or buyout
-		recordBuy(name or itemName, itemID, n, paid)
+		groupBuy(name or itemName, itemID, n, paid)
 	elseif what ~= "money" and subject:match(EXPIRED) then
 		recent[fp] = now
 		local name, itemID, _, n
@@ -237,10 +276,37 @@ function ns.SellFactor(itemID)
 end
 
 -- Multiplier for a reagent's AH cost: what you actually paid vs the scanned minimum. Returns factor, record.
+-- Auctionator's price is the cheapest listing; a batch's worth of materials climbs the listings and costs more.
+-- The starting markup for a materials purchase is what your own materials purchases paid over Auctionator,
+-- all of them pooled (1.3 while there are none); other items start at 1. An item's own purchases take over
+-- as they come (BLEND).
+local MATERIAL_PRIOR, materialPrior, priorKey = 1.3, nil, nil
+local function marketMarkup(itemID)
+	if not (ns.ItemGroup and ns.ItemGroup(itemID) == "material") then return 1 end
+	local l = ledger()
+	local key = l and #l.log
+	if priorKey ~= key then
+		priorKey = key
+		local paid, expected, events = 0, 0, 0
+		for name, b in pairs((l and l.buys) or {}) do
+			local id = idByName(name)
+			if id and b.expected > 0 and ns.ItemGroup(id) == "material" then
+				paid, expected, events = paid + b.paidFor, expected + b.expected, events + b.events
+			end
+		end
+		local raw = expected > 0 and clamp(paid / expected, 1, 3) or MATERIAL_PRIOR
+		-- few purchases: lean on the default markup
+		materialPrior = MATERIAL_PRIOR + (raw - MATERIAL_PRIOR) * events / (events + BLEND)
+	end
+	return materialPrior
+end
+
 function ns.BuyFactor(itemID)
+	local prior = enabled() and marketMarkup(itemID) or 1
 	local b = combined("buys", ns.ItemName(itemID))
-	if not b or not enabled() or b.expected <= 0 then return 1, b end
-	return clamp(blend(clamp(b.paidFor / b.expected, 0.5, 3), b.events), 0.5, 3), b
+	if not b or not enabled() or b.expected <= 0 then return prior, b end
+	local raw = clamp(b.paidFor / b.expected, 0.5, 3)
+	return clamp(prior + (raw - prior) * b.events / (b.events + BLEND), 0.5, 3), b
 end
 
 -- Measured seconds per craft of a product (needs a few timed crafts, yours or friends'), or nil.
@@ -287,4 +353,129 @@ function ns.LedgerReport()
 	local crafts = 0
 	for _ in pairs(l.crafts) do crafts = crafts + 1 end
 	print(string.format(T("  купівель: %d предметів, крафтів з таймінгом: %d предметів"), buys, crafts))
+end
+
+-- Once: purchases booked before 0.22 counted every mail of a purchase at the whole price. Rebuild the
+-- purchase records from the log with the mails of one purchase merged (same item and price within a minute),
+-- and scale down what's left of the purchase lots (Episodes.lua) by the same item's overcount.
+function ns.FixDuplicateBuys()
+	local l = ledger()
+	if not l or (WhatToDoDB.fixes and WhatToDoDB.fixes.dupBuys) then return end
+	WhatToDoDB.fixes = WhatToDoDB.fixes or {}
+	local merged, byName, raw = {}, {}, {}
+	local last = {} -- name -> merged log entry of the current purchase
+	for _, e in ipairs(l.log) do
+		if e.kind == "bought" then
+			raw[e.name] = (raw[e.name] or 0) + (e.copper or 0)
+			local m = last[e.name]
+			if m and m.copper == e.copper and e.t - m.t <= 60 then
+				m.units = (m.units or 1) + (e.units or 1)
+				if e.expected then m.expected = (m.expected or 0) + e.expected end
+			else
+				m = { t = e.t, kind = "bought", name = e.name, units = e.units or 1, copper = e.copper, expected = e.expected }
+				last[e.name] = m
+				merged[#merged + 1] = m
+			end
+		else
+			merged[#merged + 1] = e
+		end
+	end
+	local buys = {}
+	for _, e in ipairs(merged) do
+		if e.kind == "bought" then
+			local b = buys[e.name] or { units = 0, events = 0, paid = 0, expected = 0, paidFor = 0 }
+			buys[e.name] = b
+			b.units, b.events, b.paid, b.last = b.units + (e.units or 1), b.events + 1, b.paid + e.copper, e.t
+			if e.expected then b.expected, b.paidFor = b.expected + e.expected, b.paidFor + e.copper end
+		end
+	end
+	-- items whose purchases are older than the log keep their record
+	for name, b in pairs(l.buys) do if not raw[name] then buys[name] = b end end
+	l.log, l.buys = merged, buys
+	-- the lots left: every unit at the item's corrected average price (the overcount sat on single units)
+	local unitById = {}
+	for name in pairs(raw) do
+		local id, b = idByName(name), buys[name]
+		if id and b and b.units > 0 then unitById[id] = b.paid / b.units end
+	end
+	local ep = WhatToDoDB.episodes
+	if ep and ep.lots then
+		for itemID, lots in pairs(ep.lots) do
+			local id = tonumber(itemID) or itemID
+			local name = ns.ItemName(id)
+			local unit = unitById[id] or (buys[name] and raw[name] and buys[name].units > 0 and buys[name].paid / buys[name].units)
+			if unit then
+				for _, lot in ipairs(lots) do lot.cost = math.min(lot.cost, unit) end
+			end
+		end
+	end
+	-- batches open now hold costs from the overcounted purchases: kept, but not taught to the models
+	if ep and ep.open then
+		for _, b in pairs(ep.open) do b.untrusted = true end
+	end
+	WhatToDoDB.fixes.dupBuys = true
+end
+
+local fixer = CreateFrame("Frame")
+fixer:RegisterEvent("PLAYER_ENTERING_WORLD")
+fixer:SetScript("OnEvent", function(self)
+	self:UnregisterAllEvents()
+	C_Timer.After(5, function() pcall(ns.FixDuplicateBuys) end) -- item names have to be cached first
+end)
+
+---------------------------------------------------------------------------
+-- Posting: WhatToDo's own record of what you put on the AH (Auctionator's posting history doesn't always
+-- get it). WhatToDoDB.posts[itemID] = { { time, quantity, price (per unit buyout) }, ... } (newest last).
+-- Feeds batch tracking (Episodes.lua: posted, first post) and the units in a sale (unitsFromPostings).
+---------------------------------------------------------------------------
+local KEEP_POSTS = 30
+
+local function recordPost(itemID, quantity, unitPrice)
+	if not (WhatToDoDB and itemID and quantity and quantity > 0) then return end
+	WhatToDoDB.posts = WhatToDoDB.posts or {}
+	local list = WhatToDoDB.posts[itemID] or {}
+	WhatToDoDB.posts[itemID] = list
+	list[#list + 1] = { time = time(), quantity = quantity, price = unitPrice }
+	while #list > KEEP_POSTS do table.remove(list, 1) end
+	if ns.EpisodePost then ns.EpisodePost(itemID, quantity) end
+end
+
+-- Legacy AH: the item sits in the sell slot; remember it while it does, the slot may be empty after posting.
+local sellSlot
+local function readSellSlot()
+	if not GetAuctionSellItemInfo then return end
+	local name, _, count, _, _, _, _, _, _, itemID = GetAuctionSellItemInfo()
+	if name then sellSlot = { id = itemID or idByName(name), count = count } end
+end
+local slotWatch = CreateFrame("Frame")
+pcall(slotWatch.RegisterEvent, slotWatch, "NEW_AUCTION_UPDATE")
+slotWatch:SetScript("OnEvent", readSellSlot)
+
+if hooksecurefunc and PostAuction then
+	hooksecurefunc("PostAuction", function(minBid, buyout, runTime, stackSize, numStacks)
+		readSellSlot()
+		local slot = sellSlot
+		if not (slot and slot.id) then return end
+		local size = stackSize or slot.count or 1
+		local stacks = numStacks or 1
+		recordPost(slot.id, size * stacks, (buyout and buyout > 0 and size > 0) and buyout / size or nil)
+	end)
+end
+-- Modern AH
+if hooksecurefunc and C_AuctionHouse then
+	local function idOf(location)
+		local ok, id = pcall(function() return C_Item.GetItemID(location) end)
+		return ok and id or nil
+	end
+	if C_AuctionHouse.PostItem then
+		hooksecurefunc(C_AuctionHouse, "PostItem", function(location, _, quantity, _, buyout)
+			local q = quantity or 1
+			recordPost(idOf(location), q, buyout and buyout / q or nil)
+		end)
+	end
+	if C_AuctionHouse.PostCommodity then
+		hooksecurefunc(C_AuctionHouse, "PostCommodity", function(location, _, quantity, unitPrice)
+			recordPost(idOf(location), quantity, unitPrice)
+		end)
+	end
 end

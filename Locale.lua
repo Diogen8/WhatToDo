@@ -341,6 +341,7 @@ local EN = {
 	["Yield тепер записує фарм і з закритим вікном."] = "Yield now records farming with its window closed too.",
 	["|cffffcc00Yield записує фарм лише коли його вікно відкрите.|r Увімкніть Yield > Settings > Tracking > \"Record when Yield is closed\" або наберіть |cffffd100/wtd yield|r - увімкну сам."] = "|cffffcc00Yield records farming only while its window is open.|r Turn on Yield > Settings > Tracking > \"Record when Yield is closed\" or type |cffffd100/wtd yield|r and I'll do it.",
 	[" (лише з відкритим вікном, /wtd yield)"] = " (only with its window open, /wtd yield)",
+	[" (прокачка)"] = " (levelling)",
 }
 
 function ns.Lang()

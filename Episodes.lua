@@ -152,6 +152,9 @@ local function openBatch(e, product, recipe)
 		crafts = 0, crafted = 0, cost = 0, ownMats = 0, sold = 0, revenue = 0, returned = 0, posted = 0,
 		saleHours = 0, active = 0, forecast = forecastFor(product),
 	}
+	-- crafted though WhatToDo didn't suggest it (not listed, or less than nothing most likely): levelling
+	-- the profession, most likely. Its outcome is kept but doesn't teach the models about recraft.
+	b.levelling = not (b.forecast and (b.forecast.perHour or 0) > 0) or nil
 	e.nextId = e.nextId + 1
 	-- time spent buying its reagents shortly before
 	for _, rg in ipairs(recipe.reagents) do
@@ -176,6 +179,7 @@ local function closeBatch(e, b, now)
 		waitHours = b.sold > 0 and b.saleHours / b.sold or nil,
 		perActiveHour = b.active >= 60 and profit * 3600 / b.active or nil,
 		forecast = b.forecast,
+		levelling = b.levelling, untrusted = b.untrusted,
 		success = profit > 0,
 	}
 	e.closed[#e.closed + 1] = outcome
@@ -226,37 +230,14 @@ function ns.EpisodeReturn(itemID, units)
 	touch("b:" .. b.id)
 end
 
--- Posts: what Auctionator's posting history gained for open batches while the AH was open.
-local postCounts = {}
-local function postingHistory(itemID)
-	local h = type(AUCTIONATOR_POSTING_HISTORY) == "table" and AUCTIONATOR_POSTING_HISTORY[tostring(itemID)]
-	return type(h) == "table" and h or nil
-end
-
-local function snapshotPosts(e)
-	postCounts = {}
-	for product in pairs(e.open) do
-		local h = postingHistory(product)
-		postCounts[product] = h and #h or 0
-	end
-end
-
-local function collectPosts(e)
-	for product, b in pairs(e.open) do
-		local h = postingHistory(product)
-		local before = postCounts[product] or 0
-		if h and #h > before then
-			for i = before + 1, #h do
-				local p = h[i]
-				if type(p) == "table" then
-					b.posted = b.posted + (tonumber(p.quantity) or 1)
-					local t = tonumber(p.time) or time()
-					if not b.firstPost or t < b.firstPost then b.firstPost = t end
-				end
-			end
-			touch("b:" .. b.id)
-		end
-	end
+-- Posts (Ledger.lua's own posting record): units of an open batch put on the AH, and when first.
+function ns.EpisodePost(itemID, quantity)
+	local e = db()
+	local b = e and e.open[itemID]
+	if not b then return end
+	b.posted = b.posted + (quantity or 1)
+	if not b.firstPost then b.firstPost = time() end
+	touch("b:" .. b.id)
 end
 
 ---------------------------------------------------------------------------
@@ -331,9 +312,7 @@ f:SetScript("OnEvent", function(_, event)
 	if not w then return end
 	if w[2] then
 		if not windows[w[1]] then windows[w[1]] = { since = GetTime(), touched = {} } end
-		if w[1] == "ah" then snapshotPosts(e) end
 	else
-		if w[1] == "ah" then collectPosts(e) end
 		closeWindow(w[1])
 	end
 end)
@@ -381,10 +360,10 @@ function ns.ResultsReport()
 		print(string.format(T("  %s: %d крафтів, продано %d з %d, прибуток %s, %s - %s"),
 			ns.ItemName(o.product), o.crafts, o.sold, o.crafted, ns.Coin(o.profit),
 			o.perActiveHour and (ns.Coin(o.perActiveHour) .. T("/год активного часу")) or T("мало активного часу"),
-			o.success and T("|cff66ff66у плюс|r") or T("|cffff6666у мінус|r")))
+			(o.success and T("|cff66ff66у плюс|r") or T("|cffff6666у мінус|r")) .. (o.levelling and T(" (прокачка)") or "")))
 	end
 	for product, b in pairs(e.open) do
-		print(string.format(T("  відкрита: %s, скрафчено %d, продано %d, витрачено %s"), ns.ItemName(product), b.crafted, b.sold, ns.Coin(b.cost)))
+		print(string.format(T("  відкрита: %s, скрафчено %d, продано %d, витрачено %s"), ns.ItemName(product), b.crafted, b.sold, ns.Coin(b.cost)) .. (b.levelling and T(" (прокачка)") or ""))
 	end
 	local fok = 0
 	for _, r in ipairs(e.farm) do if r.success then fok = fok + 1 end end
